@@ -2,7 +2,9 @@ package com.example.workflow_management_system.controller;
 
 import com.example.workflow_management_system.dto.TenantRequest;
 import com.example.workflow_management_system.dto.TenantResponse;
+import com.example.workflow_management_system.dto.UserResponse;
 import com.example.workflow_management_system.service.TenantService;
+import com.example.workflow_management_system.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +17,11 @@ import java.util.List;
 public class TenantController {
 
     private final TenantService tenantService;
+    private final UserService userService;
 
-    public TenantController(TenantService tenantService) {
+    public TenantController(TenantService tenantService, UserService userService) {
         this.tenantService = tenantService;
+        this.userService = userService;
     }
 
     @PostMapping
@@ -46,5 +50,10 @@ public class TenantController {
     public ResponseEntity<Void> deleteTenant(@PathVariable Long id) {
         tenantService.deleteTenant(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/users")
+    public ResponseEntity<List<UserResponse>> getUsersByTenant(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUsersByTenant(id));
     }
 }
