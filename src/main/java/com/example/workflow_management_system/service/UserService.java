@@ -6,6 +6,7 @@ import com.example.workflow_management_system.model.Tenant;
 import com.example.workflow_management_system.model.User;
 import com.example.workflow_management_system.repository.TenantRepository;
 import com.example.workflow_management_system.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,18 +21,46 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository;
+    private final MailService mailService;
 
-    public UserService(UserRepository userRepository, TenantRepository tenantRepository) {
+    public UserService(UserRepository userRepository, TenantRepository tenantRepository,
+            PasswordEncoder passwordEncoder,
+            com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository,
+            MailService mailService) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.inviteTokenRepository = inviteTokenRepository;
+        this.mailService = mailService;
     }
 
     public UserResponse createUser(UserRequest request) {
+        // Enforce Tenant Isolation
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(request.tenantId());
+
         if (userRepository.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
         }
         if (userRepository.existsByEmail(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
+        }
+
+        // Validate Role Hierarchy
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+        String currentRoleName = currentUser.getRole();
+        com.example.workflow_management_system.model.UserRole requestRole = request.role();
+
+        if ("ADMIN".equals(currentRoleName)) {
+            if (requestRole != com.example.workflow_management_system.model.UserRole.USER) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ADMINs can only create USERs.");
+            }
+        } else if ("SUPER_ADMIN".equals(currentRoleName)) {
+            if (requestRole == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot create another SUPER_ADMIN.");
+            }
         }
 
         Tenant tenant = tenantRepository.findById(request.tenantId())
@@ -40,18 +69,36 @@ public class UserService {
         User user = new User(
                 request.username(),
                 request.email(),
-                request.password(), // In a real app, this should be encoded
+                null, // Password is null until set by user via invite
                 request.role(),
                 tenant,
                 request.active());
 
         User savedUser = userRepository.save(user);
+
+        // Create Invite Token
+        com.example.workflow_management_system.model.InviteToken inviteToken = new com.example.workflow_management_system.model.InviteToken(
+                java.util.UUID.randomUUID().toString(),
+                savedUser,
+                java.time.LocalDateTime.now().plusHours(24) // 24 hours expiry
+        );
+        inviteTokenRepository.save(inviteToken);
+
+        // Send invite email with token
+        mailService.sendInvitationEmail(savedUser.getEmail(), savedUser.getUsername(), tenant.getName(),
+                inviteToken.getToken());
+
         return mapToResponse(savedUser);
     }
 
     public UserResponse updateUser(Long id, UserRequest request) {
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(request.tenantId());
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        // Enforce Cross-Tenant Data Access Check on existing user
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
 
         // Check uniqueness logic if username/email changed
         if (!user.getUsername().equals(request.username()) && userRepository.existsByUsername(request.username())) {
@@ -66,7 +113,6 @@ public class UserService {
 
         user.setUsername(request.username());
         user.setEmail(request.email());
-        user.setPassword(request.password());
         user.setRole(request.role());
         user.setTenant(tenant);
         user.setActive(request.active());
@@ -79,11 +125,16 @@ public class UserService {
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
+
         return mapToResponse(user);
     }
 
     @Transactional(readOnly = true)
     public List<UserResponse> getUsersByTenant(Long tenantId) {
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(tenantId);
+
         if (!tenantRepository.existsById(tenantId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
@@ -95,6 +146,9 @@ public class UserService {
     public UserResponse updateUserStatus(Long id, boolean active) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
+
         user.setActive(active);
         User updatedUser = userRepository.save(user);
         return mapToResponse(updatedUser);
@@ -110,5 +164,28 @@ public class UserService {
                 user.getTenant().getId(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
+    }
+
+    @Transactional
+    public void setPassword(com.example.workflow_management_system.dto.SetPasswordRequest request) {
+        com.example.workflow_management_system.model.InviteToken inviteToken = inviteTokenRepository
+                .findByToken(request.token())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token"));
+
+        if (inviteToken.isUsed()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token already used");
+        }
+
+        if (inviteToken.getExpiryDate().isBefore(java.time.LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expired");
+        }
+
+        User user = inviteToken.getUser();
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        user.setActive(true);
+        userRepository.save(user);
+
+        inviteToken.setUsed(true);
+        inviteTokenRepository.save(inviteToken);
     }
 }
