@@ -7,12 +7,12 @@ function getToken() {
 }
 
 function setToken(token) {
-    if(!token) return;
+    if (!token) return;
     localStorage.setItem('accessToken', token);
 }
 
 function setRefreshToken(token) {
-    if(!token) return;
+    if (!token) return;
     localStorage.setItem('refreshToken', token);
 }
 
@@ -41,13 +41,13 @@ function getAuthContext() {
     if (!token) return null;
     const claims = parseJwt(token);
     if (!claims) return null;
-    
+
     // Check expiration
     if (claims.exp * 1000 < Date.now()) {
         clearAuth();
         return null;
     }
-    
+
     return {
         username: claims.sub,
         role: claims.role,
@@ -81,20 +81,20 @@ function requireAuth(allowedRoles = null) {
         clearAuth();
         return null;
     }
-    
+
     if (allowedRoles && !hasRole(allowedRoles)) {
         // Role mismatch - redirect to dashboard typically, or show forbidden?
         // For now, redirect to dashboard as a safe fallback
-         window.location.href = '/dashboard';
-         return null;
+        window.location.href = '/dashboard';
+        return null;
     }
-    
+
     // Update UI with user info if element exists
     const userDisplay = document.getElementById('navUserDisplay');
     if (userDisplay) {
         userDisplay.textContent = `${ctx.username} (${ctx.role}) ${ctx.tenantName ? '@ ' + ctx.tenantName : ''}`;
     }
-    
+
     return ctx;
 }
 
@@ -121,10 +121,13 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 
         // Handle 401 Unauthorized or 403 Forbidden
         if (response.status === 401) {
-            clearAuth(); // Strict Logout
-            throw new Error('Session expired');
+            // If this is a login attempt, don't auto-redirect, let the error bubble up
+            if (!endpoint.includes('/auth/login')) {
+                clearAuth(); // Strict Logout
+                throw new Error('Session expired');
+            }
         }
-        
+
         if (response.status === 403) {
             throw new Error('Access Denied: You do not have permission for this action.');
         }
@@ -152,7 +155,7 @@ function setLoading(btnId, isLoading, text = 'Loading...') {
     if (isLoading) {
         btn.dataset.originalText = btn.textContent;
         // Add spinner html if you want, or just text
-        btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:5px">⟳</span> ${text}`; 
+        btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:5px">⟳</span> ${text}`;
         btn.disabled = true;
     } else {
         btn.innerHTML = btn.dataset.originalText || 'Submit';
@@ -171,9 +174,9 @@ if (!document.getElementById('spinner-style')) {
 function showMessage(id, message, type = 'error') {
     const el = document.getElementById(id);
     if (!el) return;
-    
+
     // Icon based on type
-    const icon = type === 'error' 
+    const icon = type === 'error'
         ? '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
         : '<svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
 
@@ -190,17 +193,17 @@ function hideMessage(id) {
 function renderTable(containerId, columns, data, actions = []) {
     const container = document.getElementById(containerId);
     if (!container) return;
-    
+
     if (!data || data.length === 0) {
         container.innerHTML = '<div class="text-center p-4 text-muted">No data available</div>';
         return;
     }
-    
+
     let html = '<div class="table-container"><table><thead><tr>';
     columns.forEach(col => html += `<th>${col.label}</th>`);
     if (actions.length > 0) html += '<th>Actions</th>';
     html += '</tr></thead><tbody>';
-    
+
     data.forEach(row => {
         html += '<tr>';
         columns.forEach(col => {
@@ -208,18 +211,18 @@ function renderTable(containerId, columns, data, actions = []) {
             if (col.format) val = col.format(val, row);
             html += `<td>${val === undefined || val === null ? '-' : val}</td>`;
         });
-        
+
         if (actions.length > 0) {
             html += '<td class="flex gap-2">';
             actions.forEach(action => {
-               if (action.condition && !action.condition(row)) return;
-               html += `<button class="btn btn-sm ${action.class || ''}" onclick="${action.handler}(${row.id})">${action.label}</button>`;
+                if (action.condition && !action.condition(row)) return;
+                html += `<button class="btn btn-sm ${action.class || ''}" onclick="${action.handler}(${row.id})">${action.label}</button>`;
             });
             html += '</td>';
         }
         html += '</tr>';
     });
-    
+
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }

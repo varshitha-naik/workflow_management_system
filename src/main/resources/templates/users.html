@@ -60,12 +60,7 @@
             <form id="createUserForm">
                 <input type="hidden" id="editUserId">
 
-                <div class="form-group hidden" id="tenantSelectGroup">
-                    <label for="tenantSelect">Tenant</label>
-                    <select id="tenantSelect">
-                        <option value="">Select a Tenant</option>
-                    </select>
-                </div>
+                <!-- Tenant Select Removed -->
 
                 <div class="flex gap-4 mb-4">
                     <div class="w-full">
@@ -76,7 +71,7 @@
                         <label for="role">Role</label>
                         <select id="role" required>
                             <option value="USER">User</option>
-                            <option value="ADMIN">Admin</option>
+                            <option value="ADMIN" id="roleAdminOption">Admin</option>
                         </select>
                     </div>
                 </div>
@@ -86,7 +81,7 @@
                     <input type="email" id="email" required>
                 </div>
 
-                <div class="form-group mb-6">
+                <div id="activeGroup" class="form-group mb-6">
                     <label class="flex items-center gap-2" style="cursor: pointer;">
                         <input type="checkbox" id="active" checked style="width: auto;">
                         <span>Active Account</span>
@@ -114,7 +109,7 @@
         async function init() {
             if (hasRole('SUPER_ADMIN')) {
                 document.getElementById('filterContainer').classList.remove('hidden');
-                document.getElementById('tenantSelectGroup').classList.remove('hidden');
+                // document.getElementById('tenantSelectGroup').classList.remove('hidden'); // Removed
                 await loadTenants();
             }
             loadUsers();
@@ -128,15 +123,15 @@
             try {
                 const tenants = await apiCall('/tenants');
                 const filter = document.getElementById('tenantFilter');
-                const modal = document.getElementById('tenantSelect');
+                // const modal = document.getElementById('tenantSelect');
 
                 // Keep first
                 filter.innerHTML = '<option value="">All Tenants</option>';
-                modal.innerHTML = '<option value="">Select Tenant</option>';
+                // modal.innerHTML = '<option value="">Select Tenant</option>';
 
                 tenants.forEach(t => {
                     filter.add(new Option(t.name, t.id));
-                    modal.add(new Option(t.name, t.id));
+                    // modal.add(new Option(t.name, t.id));
                 });
             } catch (e) {
                 console.error("Tenants load failed", e);
@@ -144,6 +139,13 @@
         }
 
         async function loadUsers(tenantId = null) {
+
+            // Check if regular USER, redirect (client-side safety)
+            if (hasRole('USER')) {
+                window.location.href = '/dashboard';
+                return;
+            }
+
             const loading = document.getElementById('loading');
             const container = document.getElementById('usersTableContainer');
 
@@ -166,7 +168,18 @@
                     { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
                     { label: 'Tenant ID', key: 'tenantId' }
                 ], users, [
-                    { label: 'Edit', class: 'btn-secondary', handler: 'editUser' }
+                    {
+                        label: 'Edit',
+                        class: 'btn-secondary',
+                        handler: 'editUser',
+                        condition: (row) => {
+                            if (hasRole('ADMIN')) {
+                                // Admin cannot edit Admin or SuperAdmin
+                                if (row.role === 'ADMIN' || row.role === 'SUPER_ADMIN') return false;
+                            }
+                            return true;
+                        }
+                    }
                 ]);
 
             } catch (err) {
@@ -187,9 +200,11 @@
             document.getElementById('role').value = user.role;
             document.getElementById('active').checked = user.active;
 
-            if (hasRole('SUPER_ADMIN')) {
-                document.getElementById('tenantSelect').value = user.tenantId;
-            }
+            document.getElementById('activeGroup').classList.remove('hidden');
+
+            // if (hasRole('SUPER_ADMIN')) {
+            //    document.getElementById('tenantSelect').value = user.tenantId;
+            // }
 
             hideMessage('modalError');
             document.getElementById('createModal').classList.remove('hidden');
@@ -199,7 +214,16 @@
             document.getElementById('modalTitle').textContent = 'Create New User';
             document.getElementById('createUserForm').reset();
             document.getElementById('editUserId').value = '';
-            document.getElementById('active').checked = true;
+            document.getElementById('activeGroup').classList.add('hidden');
+
+            // Role restriction for Create
+            if (hasRole('ADMIN')) {
+                document.getElementById('roleAdminOption').disabled = true;
+                document.getElementById('role').value = 'USER';
+            } else {
+                document.getElementById('roleAdminOption').disabled = false;
+            }
+
             hideMessage('modalError');
             document.getElementById('createModal').classList.remove('hidden');
         }
@@ -221,16 +245,17 @@
                     username: document.getElementById('username').value,
                     email: document.getElementById('email').value,
                     role: document.getElementById('role').value,
-                    active: document.getElementById('active').checked,
-                    // If SUPER_ADMIN, get from select. If ADMIN, use context.
-                    tenantId: hasRole('SUPER_ADMIN')
-                        ? parseInt(document.getElementById('tenantSelect').value)
-                        : parseInt(ctx.tenantId)
+                    role: document.getElementById('role').value
+                    // tenantId removed
                 };
 
-                if (hasRole('SUPER_ADMIN') && !body.tenantId) {
-                    throw new Error("Tenant is required");
+                if (isEdit) {
+                    body.active = document.getElementById('active').checked;
                 }
+
+                // if (hasRole('SUPER_ADMIN') && !body.tenantId) {
+                //    throw new Error("Tenant is required");
+                // }
 
                 if (isEdit) {
                     await apiCall(`/users/${id}`, 'PUT', body);

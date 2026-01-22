@@ -38,7 +38,8 @@ public class UserService {
 
     public UserResponse createUser(UserRequest request) {
         // Enforce Tenant Isolation
-        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(request.tenantId());
+        // com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(request.tenantId());
+        Long tenantId = com.example.workflow_management_system.security.SecurityUtils.getCurrentUser().getTenantId();
 
         if (userRepository.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
@@ -63,7 +64,7 @@ public class UserService {
             }
         }
 
-        Tenant tenant = tenantRepository.findById(request.tenantId())
+        Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant not found"));
 
         User user = new User(
@@ -72,7 +73,7 @@ public class UserService {
                 null, // Password is null until set by user via invite
                 request.role(),
                 tenant,
-                request.active());
+                false);
 
         User savedUser = userRepository.save(user);
 
@@ -92,13 +93,37 @@ public class UserService {
     }
 
     public UserResponse updateUser(Long id, UserRequest request) {
-        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(request.tenantId());
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Enforce Cross-Tenant Data Access Check on existing user
         com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
+
+        // Validate Role Hierarchy for Update
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+        String currentRoleName = currentUser.getRole();
+        com.example.workflow_management_system.model.UserRole targetRole = user.getRole();
+
+        if ("ADMIN".equals(currentRoleName)) {
+            // ADMIN cannot edit ADMIN or SUPER_ADMIN
+            if (targetRole == com.example.workflow_management_system.model.UserRole.ADMIN
+                    || targetRole == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "ADMINs cannot edit ADMIN or SUPER_ADMIN accounts.");
+            }
+            // ADMIN cannot promote someone to ADMIN or SUPER_ADMIN
+            if (request.role() != com.example.workflow_management_system.model.UserRole.USER) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ADMINs can only set role to USER.");
+            }
+        } else if ("SUPER_ADMIN".equals(currentRoleName)) {
+            // SUPER_ADMIN cannot update role to SUPER_ADMIN
+            if (request.role() == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN
+                    && targetRole != com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot promote to SUPER_ADMIN.");
+            }
+        }
 
         // Check uniqueness logic if username/email changed
         if (!user.getUsername().equals(request.username()) && userRepository.existsByUsername(request.username())) {
@@ -108,13 +133,10 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
-        Tenant tenant = tenantRepository.findById(request.tenantId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant not found"));
-
         user.setUsername(request.username());
         user.setEmail(request.email());
         user.setRole(request.role());
-        user.setTenant(tenant);
+        // user.setTenant(tenant); // Tenant cannot be changed via update
         user.setActive(request.active());
 
         User updatedUser = userRepository.save(user);
@@ -155,6 +177,16 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
+
+        // Role check for status update
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+        if ("ADMIN".equals(currentUser.getRole())) {
+            if (user.getRole() == com.example.workflow_management_system.model.UserRole.ADMIN
+                    || user.getRole() == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "ADMINs cannot change status of higher roles.");
+            }
+        }
 
         user.setActive(active);
         User updatedUser = userRepository.save(user);

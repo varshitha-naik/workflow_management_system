@@ -24,6 +24,12 @@ public class WebController {
         return "reset-password";
     }
 
+    @GetMapping("/set-password")
+    public String setPassword(@RequestParam(required = false) String token, Model model) {
+        model.addAttribute("token", token);
+        return "set-password";
+    }
+
     @GetMapping("/dashboard")
     public String dashboard() {
         return "dashboard";

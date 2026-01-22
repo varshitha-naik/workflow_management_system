@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuthenticationException(AuthenticationException ex,
             HttpServletRequest request) {
-        return buildResponse(HttpStatus.UNAUTHORIZED, "Authentication Failed", request);
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid username or password", request);
     }
 
     @ExceptionHandler(Exception.class)
