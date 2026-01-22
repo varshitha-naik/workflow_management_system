@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
     <title>Dashboard - Workflow System</title>
     <link rel="stylesheet" href="/css/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,11 +11,9 @@
 <body>
     <header class="header">
         <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow System</a>
+            <a href="/dashboard" class="brand">Workflow Sys</a>
             <div class="nav-user">
-                <span id="headerUserName">Loading...</span>
-                <span id="tenantBadge" class="hidden"
-                    style="background:var(--bg-color); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;"></span>
+                <span id="navUserDisplay" class="hidden-mobile">Loading...</span>
                 <a href="/profile" class="profile-link">Profile</a>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
@@ -22,102 +21,144 @@
     </header>
 
     <div class="container-dash">
-        <h2>Dashboard</h2>
-        <p class="subtitle">Welcome to your dashboard.</p>
-
-        <div class="card">
-            <h3 class="label-text">Your Account</h3>
-            <div id="userLoading" class="text-center">Loading user data...</div>
-            <div id="userData" class="info-grid hidden">
-                <div class="info-item">
-                    <div class="info-label">Full Name</div>
-                    <div class="info-value" id="dispUsername"></div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Email</div>
-                    <div class="info-value" id="dispEmail"></div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Role</div>
-                    <div class="info-value" id="dispRole"></div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Tenant</div>
-                    <div class="info-value" id="dispTenant"></div>
-                </div>
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 id="welcomeTitle">Dashboard</h1>
+                <p class="subtitle" id="welcomeSubtitle" style="margin-bottom:0">Overview of your system</p>
             </div>
+            <div id="tenantTag" class="badge badge-success hidden"></div>
         </div>
 
-        <div id="adminSection" class="card mt-4 hidden">
-            <h3 class="label-text">Administration</h3>
-            <div class="mt-2">
-                <a href="/users" class="btn" style="width: auto; display: inline-block; margin-right: 1rem;">Manage
-                    Users</a>
-                <span id="superAdminActions" class="hidden">
-                    <a href="/tenants" class="btn"
-                        style="width: auto; display: inline-block; background-color: var(--text-main);">Manage
-                        Tenants</a>
-                </span>
-            </div>
-            <p class="subtitle mt-2" style="margin-bottom:0; font-size: 0.85rem;">
-                As an admin, you can manage users within your scope.
-            </p>
+        <!-- Stats Grid -->
+        <div id="statsGrid" class="dashboard-grid mb-6">
+            <!-- Injected by JS -->
+        </div>
+
+        <!-- Action Modules -->
+        <h2 class="mt-8">Quick Actions</h2>
+        <div id="modulesGrid" class="dashboard-grid">
+            <a href="/profile" class="card"
+                style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">My Profile</h3>
+                <p class="text-muted" style="font-size: 0.9rem;">View and manage your account details.</p>
+            </a>
+            <!-- Logic will append other modules -->
         </div>
     </div>
 
     <script src="/js/app.js"></script>
     <script>
-        const claims = requireAuth();
-
-        if (claims.role === 'SUPER_ADMIN' || claims.role === 'ADMIN') {
-            document.getElementById('adminSection').classList.remove('hidden');
-        }
-        if (claims.role === 'SUPER_ADMIN') {
-            document.getElementById('superAdminActions').classList.remove('hidden');
-        }
+        const ctx = requireAuth();
 
         function logout() {
             clearAuth();
-            window.location.href = '/login';
         }
 
-        async function loadData() {
-            try {
-                // Fetch User
-                const user = await apiCall('/users/me');
+        async function initDashboard() {
+            if (!ctx) return;
 
-                document.getElementById('headerUserName').textContent = user.username;
-                document.getElementById('dispUsername').textContent = user.username;
-                document.getElementById('dispEmail').textContent = user.email;
-                document.getElementById('dispRole').textContent = user.role;
+            // Set Headers
+            document.getElementById('welcomeTitle').textContent = `Hello, ${ctx.username}`;
+            if (ctx.tenantName) {
+                const tag = document.getElementById('tenantTag');
+                tag.textContent = ctx.tenantName;
+                tag.classList.remove('hidden');
+            }
 
-                // Fetch Tenant if exists
-                if (user.tenantId) {
-                    try {
-                        const tenant = await apiCall(`/tenants/${user.tenantId}`);
-                        document.getElementById('dispTenant').textContent = tenant.name;
+            const statsGrid = document.getElementById('statsGrid');
+            const modulesGrid = document.getElementById('modulesGrid');
 
-                        const badge = document.getElementById('tenantBadge');
-                        badge.textContent = tenant.name;
-                        badge.classList.remove('hidden');
-                    } catch (e) {
-                        document.getElementById('dispTenant').textContent = `ID: ${user.tenantId}`;
+            // --- SUPER_ADMIN Logic ---
+            if (hasRole('SUPER_ADMIN')) {
+                // 1. Module: Manage Tenants
+                modulesGrid.innerHTML += `
+                    <a href="/tenants" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
+                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Manage Tenants</h3>
+                        <p class="text-muted" style="font-size: 0.9rem;">Create, update, and remove system tenants.</p>
+                    </a>
+                `;
+
+                // 2. Module: Manage Global Users
+                modulesGrid.innerHTML += `
+                    <a href="/users" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
+                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Manage Users</h3>
+                        <p class="text-muted" style="font-size: 0.9rem;">Administer users across all tenants.</p>
+                    </a>
+                `;
+
+                // 3. Stats: Fetch Counts
+                try {
+                    const [tenants, users] = await Promise.all([
+                        apiCall('/tenants'),
+                        apiCall('/users')
+                    ]);
+
+                    if (tenants) {
+                        statsGrid.innerHTML += `
+                            <div class="stat-card">
+                                <div class="stat-value">${tenants.length}</div>
+                                <div class="stat-label">Active Tenants</div>
+                            </div>
+                        `;
                     }
-                } else {
-                    document.getElementById('dispTenant').textContent = 'N/A';
+                    if (users) {
+                        statsGrid.innerHTML += `
+                            <div class="stat-card">
+                                <div class="stat-value">${users.length}</div>
+                                <div class="stat-label">Total Users</div>
+                            </div>
+                        `;
+                    }
+                } catch (e) {
+                    console.error("Failed to load stats", e);
                 }
+            }
 
-                document.getElementById('userLoading').classList.add('hidden');
-                document.getElementById('userData').classList.remove('hidden');
+            // --- ADMIN Logic ---
+            else if (hasRole('ADMIN')) {
+                // 1. Module: Manage Users
+                modulesGrid.innerHTML += `
+                    <a href="/users" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
+                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Team Members</h3>
+                        <p class="text-muted" style="font-size: 0.9rem;">Manage users within your organization.</p>
+                    </a>
+                `;
 
-            } catch (err) {
-                console.error(err);
-                // If auth failed, apiCall redirects. If other error:
-                document.getElementById('userLoading').textContent = 'Failed to load data.';
+                // 2. Module: Tenant Info (View Only)
+                // We link to a read-only view or just show it here? 
+                // Let's link to tenants page but maybe we need a dedicated "My Tenant" page since /tenants is a list.
+                // Or maybe /profile deals with it? 
+                // Strict API: GET /api/tenants/{id} is allowed.
+                // We can just show a Stat card for "My Tenant" if we want, or add a link.
+                // For now, let's just show Users stat.
+
+                try {
+                    const users = await apiCall('/users');
+                    if (users) {
+                        statsGrid.innerHTML += `
+                            <div class="stat-card">
+                                <div class="stat-value">${users.length}</div>
+                                <div class="stat-label">Team Members</div>
+                            </div>
+                        `;
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            // --- USER Logic ---
+            else {
+                // Just Profile, already added default.
+                // Maybe a stat for "My Account Status"
+                statsGrid.innerHTML += `
+                    <div class="stat-card">
+                        <div class="stat-value">Active</div>
+                        <div class="stat-label">Account Status</div>
+                    </div>
+                `;
             }
         }
 
-        loadData();
+        initDashboard();
     </script>
 </body>
 

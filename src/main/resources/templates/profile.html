@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
     <title>Profile - Workflow System</title>
     <link rel="stylesheet" href="/css/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,7 @@
 <body>
     <header class="header">
         <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow System</a>
+            <a href="/dashboard" class="brand">Workflow Sys</a>
             <div class="nav-user">
                 <a href="/dashboard" class="profile-link">Dashboard</a>
                 <button onclick="logout()" class="logout-btn">Logout</button>
@@ -18,45 +19,51 @@
         </div>
     </header>
 
-    <div class="container">
-        <div class="card">
-            <h2>Your Profile</h2>
-            <div id="message" class="hidden"></div>
+    <div class="container" style="max-width: 600px;">
+        <div class="card p-6">
+            <h2 class="mb-6">Account Settings</h2>
+
+            <div id="message" class="hidden alert"></div>
 
             <form id="profileForm">
                 <div class="form-group">
-                    <label for="email">Email (Read-only)</label>
-                    <input type="email" id="email" disabled
-                        style="background-color: var(--bg-color); cursor: not-allowed; opacity: 0.7;">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" disabled class="bg-gray-100 cursor-not-allowed">
+                    <small class="text-muted">Email cannot be changed.</small>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mt-4">
                     <label for="username">Username</label>
                     <input type="text" id="username" required>
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Change Password (Optional)</label>
-                    <input type="password" id="password" placeholder="Leave blank to keep current password">
+                <div class="mt-8 mb-4 border-t pt-4">
+                    <h3 class="text-sm font-semibold uppercase text-muted mb-4">Security</h3>
+
+                    <div class="form-group">
+                        <label for="password">New Password</label>
+                        <input type="password" id="password" placeholder="Leave blank to keep current">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="confirmPassword">Confirm New Password</label>
-                    <input type="password" id="confirmPassword" placeholder="">
+                <div class="flex justify-end">
+                    <button type="submit" id="submitBtn" class="btn" style="width: auto;">Save Changes</button>
                 </div>
-
-                <button type="submit" id="submitBtn" class="btn">Update Profile</button>
             </form>
         </div>
     </div>
 
     <script src="/js/app.js"></script>
     <script>
-        const claims = requireAuth();
+        const ctx = requireAuth();
 
         function logout() {
             clearAuth();
-            window.location.href = '/login';
         }
 
         async function loadProfile() {
@@ -74,15 +81,15 @@
         document.getElementById('profileForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMessage('message');
-            setLoading('submitBtn', true);
+            setLoading('submitBtn', true, 'Saving...');
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
             if (password && password !== confirmPassword) {
-                showMessage('message', 'Passwords do not match.');
-                setLoading('submitBtn', false, 'Update Profile');
+                showMessage('message', 'Passwords do not match.', 'error');
+                setLoading('submitBtn', false, 'Save Changes');
                 return;
             }
 
@@ -92,10 +99,12 @@
             try {
                 await apiCall('/users/me', 'PUT', body);
                 showMessage('message', 'Profile updated successfully.', 'success');
+                password.value = '';
+                confirmPassword.value = '';
             } catch (err) {
-                showMessage('message', err.message || 'Failed to update profile.');
+                showMessage('message', err.message || 'Failed to update profile.', 'error');
             } finally {
-                setLoading('submitBtn', false, 'Update Profile');
+                setLoading('submitBtn', false, 'Save Changes');
             }
         });
     </script>

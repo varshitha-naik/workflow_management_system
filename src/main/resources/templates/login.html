@@ -1,37 +1,40 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Login - Workflow System</title>
     <link rel="stylesheet" href="/css/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-
-<body>
+<body class="items-center justify-center">
     <div class="container">
         <div class="card">
-            <h1 class="text-center">Welcome Back</h1>
-            <p class="subtitle text-center">Sign in to your account</p>
+            <div class="text-center mb-6">
+                <h1 class="brand" style="font-size: 2rem; margin-bottom: 0.5rem;">Workflow Sys</h1>
+                <p class="subtitle" style="margin-bottom: 0;">Sign in to your account</p>
+            </div>
 
             <div id="message" class="hidden"></div>
 
             <form id="loginForm">
                 <div class="form-group">
                     <label for="email">Email or Username</label>
-                    <input type="text" id="email" required autocomplete="username">
+                    <input type="text" id="email" required autocomplete="username" placeholder="name@company.com">
                 </div>
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required autocomplete="current-password">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="password" style="margin-bottom:0">Password</label>
+                        <a href="/forgot-password" style="font-size: 0.8rem;">Forgot password?</a>
+                    </div>
+                    <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
                 </div>
 
-                <button type="submit" id="submitBtn" class="btn mb-4">Sign In</button>
-
-                <div class="text-center">
-                    <a href="/forgot-password" class="text-sm">Forgot your password?</a>
-                </div>
+                <button type="submit" id="submitBtn" class="btn mt-4">Sign In</button>
             </form>
         </div>
+        <p class="text-center mt-4 text-muted" style="font-size: 0.875rem;">
+            Don't have an account? Contact your administrator.
+        </p>
     </div>
     <script src="/js/app.js"></script>
     <script>
@@ -40,7 +43,7 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMessage('message');
-            setLoading('submitBtn', true);
+            setLoading('submitBtn', true, 'Signing in...');
 
             const usernameOrEmail = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -51,11 +54,10 @@
                 if (data.refreshToken) setRefreshToken(data.refreshToken);
                 window.location.href = '/dashboard';
             } catch (err) {
-                showMessage('message', 'Invalid credentials. Please try again.');
+                showMessage('message', err.message || 'Invalid credentials', 'error');
                 setLoading('submitBtn', false);
             }
         });
     </script>
 </body>
-
 </html>
