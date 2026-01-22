@@ -188,4 +188,21 @@ public class UserService {
         inviteToken.setUsed(true);
         inviteTokenRepository.save(inviteToken);
     }
+
+    public UserResponse updateProfile(Long userId,
+            com.example.workflow_management_system.dto.UserProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!user.getUsername().equals(request.username()) && userRepository.existsByUsername(request.username())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
+        }
+
+        user.setUsername(request.username());
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
+
+        return mapToResponse(userRepository.save(user));
+    }
 }

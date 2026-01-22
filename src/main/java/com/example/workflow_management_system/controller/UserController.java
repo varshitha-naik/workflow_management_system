@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.workflow_management_system.security.UserPrincipal;
 
 @RestController
 @RequestMapping("/api/users")
@@ -48,10 +50,23 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
+    @GetMapping("/me")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(userService.getUserById(userPrincipal.getId()));
+    }
+
     @PatchMapping("/{id}/status")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<UserResponse> updateUserStatus(@PathVariable Long id,
             @Valid @RequestBody UserStatusRequest request) {
         return ResponseEntity.ok(userService.updateUserStatus(id, request.active()));
+    }
+
+    @PutMapping("/me")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    public ResponseEntity<UserResponse> updateCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody com.example.workflow_management_system.dto.UserProfileRequest request) {
+        return ResponseEntity.ok(userService.updateProfile(userPrincipal.getId(), request));
     }
 }

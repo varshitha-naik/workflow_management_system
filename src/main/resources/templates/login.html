@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Login - Workflow System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1 class="text-center">Welcome Back</h1>
+            <p class="subtitle text-center">Sign in to your account</p>
+
+            <div id="message" class="hidden"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email or Username</label>
+                    <input type="text" id="email" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" id="submitBtn" class="btn mb-4">Sign In</button>
+
+                <div class="text-center">
+                    <a href="/forgot-password" class="text-sm">Forgot your password?</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="/js/app.js"></script>
+    <script>
+        checkAlreadyLoggedIn();
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage('message');
+            setLoading('submitBtn', true);
+
+            const usernameOrEmail = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const data = await apiCall('/auth/login', 'POST', { usernameOrEmail, password });
+                setToken(data.accessToken);
+                if (data.refreshToken) setRefreshToken(data.refreshToken);
+                window.location.href = '/dashboard';
+            } catch (err) {
+                showMessage('message', 'Invalid credentials. Please try again.');
+                setLoading('submitBtn', false);
+            }
+        });
+    </script>
+</body>
+
+</html>
