@@ -38,4 +38,14 @@ public class WebController {
     public String profile() {
         return "profile";
     }
+
+    @GetMapping("/users")
+    public String users() {
+        return "users";
+    }
+
+    @GetMapping("/tenants")
+    public String tenants() {
+        return "tenants";
+    }
 }

@@ -29,12 +29,20 @@ public class UserController {
     }
 
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
-    public ResponseEntity<java.util.List<UserResponse>> getAllUsers() {
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public ResponseEntity<java.util.List<UserResponse>> getAllUsers(@RequestParam(required = false) Long tenantId) {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
         com.example.workflow_management_system.security.UserPrincipal currentUser = (com.example.workflow_management_system.security.UserPrincipal) authentication
                 .getPrincipal();
+
+        if ("SUPER_ADMIN".equals(currentUser.getRole())) {
+            if (tenantId != null) {
+                return ResponseEntity.ok(userService.getUsersByTenant(tenantId));
+            }
+            return ResponseEntity.ok(userService.getAllUsers());
+        }
+
         return ResponseEntity.ok(userService.getUsersByTenant(currentUser.getTenantId()));
     }
 

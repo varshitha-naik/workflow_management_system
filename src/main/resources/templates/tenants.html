@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title>Tenant Management - Workflow System</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/dashboard" class="brand">Workflow System</a>
+            <div class="nav-user">
+                <a href="/dashboard" class="profile-link">Dashboard</a>
+                <a href="/users" class="profile-link">Users</a>
+                <a href="/profile" class="profile-link">Profile</a>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-dash">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+            <div>
+                <h2>Tenant Management</h2>
+                <p class="subtitle">Manage system tenants and organizations.</p>
+            </div>
+            <button class="btn" style="width: auto;" onclick="openCreateModal()">Onboard Tenant</button>
+        </div>
+
+        <div class="card">
+            <div id="loading" class="text-center">Loading tenants...</div>
+            <div id="error" class="alert alert-error hidden"></div>
+
+            <div class="overflow-x-auto">
+                <table style="width: 100%; border-collapse: collapse; text-align: left;" id="tenantTable"
+                    class="hidden">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border);">
+                            <th style="padding: 1rem;">ID</th>
+                            <th style="padding: 1rem;">Name</th>
+                            <th style="padding: 1rem;">Status</th>
+                            <th style="padding: 1rem;">Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenantTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Tenant Modal -->
+    <div id="createModal" class="hidden"
+        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;">
+        <div class="card" style="width: 100%; max-width: 450px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0;">Onboard New Tenant</h3>
+                <button onclick="closeCreateModal()"
+                    style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+
+            <div id="modalError" class="alert alert-error hidden"></div>
+
+            <form id="createTenantForm">
+                <div class="form-group">
+                    <label for="tenantName">Tenant Name</label>
+                    <input type="text" id="tenantName" required placeholder="e.g. Acme Corp">
+                </div>
+
+                <h4
+                    style="margin-bottom: 0.75rem; font-size: 0.85rem; text-transform: uppercase; color: var(--text-muted);">
+                    Admin User</h4>
+
+                <div class="form-group">
+                    <label for="adminUsername">Username</label>
+                    <input type="text" id="adminUsername" required placeholder="e.g. acme_admin">
+                </div>
+
+                <div class="form-group">
+                    <label for="adminEmail">Email</label>
+                    <input type="email" id="adminEmail" required placeholder="admin@acme.com">
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" onclick="closeCreateModal()" class="btn"
+                        style="background-color: transparent; border: 1px solid var(--border); color: var(--text-main);">Cancel</button>
+                    <button type="submit" id="saveBtn" class="btn">Onboard</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const claims = requireAuth();
+
+        if (claims.role !== 'SUPER_ADMIN') {
+            document.body.innerHTML = '<div class="container"><div class="card"><h1 class="text-center">Access Denied</h1><p class="text-center">You do not have permission to view this page.</p><div class="text-center mt-4"><a href="/dashboard">Return to Dashboard</a></div></div></div>';
+        } else {
+            loadTenants();
+        }
+
+        function logout() {
+            clearAuth();
+            window.location.href = '/login';
+        }
+
+        async function loadTenants() {
+            const table = document.getElementById('tenantTable');
+            const tbody = document.getElementById('tenantTableBody');
+            const loading = document.getElementById('loading');
+
+            loading.classList.remove('hidden');
+            table.classList.add('hidden');
+            tbody.innerHTML = '';
+
+            try {
+                const tenants = await apiCall('/tenants');
+
+                if (tenants.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center" style="padding: 2rem;">No tenants found.</td></tr>';
+                } else {
+                    tenants.forEach(t => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid var(--border)';
+                        tr.innerHTML = `
+                            <td style="padding: 1rem; color: var(--text-muted);">${t.id}</td>
+                            <td style="padding: 1rem; font-weight: 500;">${t.name}</td>
+                            <td style="padding: 1rem;">
+                                 <span style="background: var(--bg-color); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.85rem;">${t.status}</span>
+                            </td>
+                            <td style="padding: 1rem;">${new Date(t.createdAt).toLocaleDateString()}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                table.classList.remove('hidden');
+            } catch (err) {
+                showMessage('error', err.message || 'Failed to load tenants.', 'error');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function openCreateModal() {
+            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('createModal').style.display = 'flex';
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.add('hidden');
+            document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createTenantForm').reset();
+            hideMessage('modalError');
+        }
+
+        document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessage('modalError');
+            setLoading('saveBtn', true);
+
+            const body = {
+                name: document.getElementById('tenantName').value,
+                adminUsername: document.getElementById('adminUsername').value,
+                adminEmail: document.getElementById('adminEmail').value
+            };
+
+            try {
+                await apiCall('/tenants', 'POST', body);
+                closeCreateModal();
+                loadTenants(); // Refresh list
+            } catch (err) {
+                showMessage('modalError', err.message || 'Failed to create tenant.', 'error');
+            } finally {
+                setLoading('saveBtn', false, 'Onboard');
+            }
+        });
+    </script>
+</body>
+
+</html>

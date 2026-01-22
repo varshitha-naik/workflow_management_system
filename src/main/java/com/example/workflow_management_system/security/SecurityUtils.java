@@ -20,7 +20,13 @@ public class SecurityUtils {
     }
 
     public static void validateTenantAccess(Long tenantId) {
-        Long currentTenantId = getCurrentTenantId();
+        UserPrincipal currentUser = getCurrentUser();
+        // Super Admins can access any tenant
+        if ("SUPER_ADMIN".equals(currentUser.getRole())) {
+            return;
+        }
+
+        Long currentTenantId = currentUser.getTenantId();
         if (currentTenantId != null && !currentTenantId.equals(tenantId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Access denied: Cross-tenant access is not allowed");

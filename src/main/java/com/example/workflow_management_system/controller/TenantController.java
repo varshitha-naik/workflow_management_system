@@ -25,7 +25,7 @@ public class TenantController {
     }
 
     @PostMapping
-    // @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<TenantResponse> createTenant(
             @Valid @RequestBody com.example.workflow_management_system.dto.TenantCreateRequest request) {
         TenantResponse response = tenantService.createTenant(request);
@@ -33,7 +33,7 @@ public class TenantController {
     }
 
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<TenantResponse>> getAllTenants() {
         return ResponseEntity.ok(tenantService.getAllTenants());
     }
