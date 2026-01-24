@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>Global Workflows</h1>
+                        <p class="text-muted">Manage and orchestrate business processes</p>
+                    </div>
+                    <button onclick="openModal()" class="btn btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        Create Workflow
+                    </button>
+                </div>
+
+                <div id="msg"></div>
+
+                <div id="workflowsTable">
+                    <!-- Loading Skeleton -->
+                    <div class="card p-6">
+                        <div class="skeleton h-8 w-full mb-4"></div>
+                        <div class="skeleton h-8 w-3/4"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Modal -->
+    <div id="createModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-xl mb-4 font-bold">New Workflow</h2>
+            <form id="createForm" onsubmit="handleCreate(event)">
+                <div class="form-group">
+                    <label class="form-label">Workflow Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g., Employee Onboarding"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control" placeholder="Brief workflow summary">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Template</label>
+                    <select name="template" id="templateSelect" class="form-control">
+                        <option value="">-- None (Blank Workflow) --</option>
+                        <option value="ONBOARDING">Employee Onboarding (Preset)</option>
+                    </select>
+                    <p class="text-xs text-muted mt-1">Select a template to pre-fill steps.</p>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="btnSave" class="btn btn-primary">Create Workflow</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', loadWorkflows);
+
+        function openModal() {
+            document.getElementById('createModal').classList.add('open');
+            document.getElementById('createForm').reset();
+        }
+
+        function closeModal() {
+            document.getElementById('createModal').classList.remove('open');
+        }
+
+        async function loadWorkflows() {
+            const container = document.getElementById('workflowsTable');
+            try {
+                const data = await apiCall('/workflows');
+
+                renderTable('workflowsTable', [
+                    { label: 'Name', key: 'name' },
+                    { label: 'Description', key: 'description' },
+                    {
+                        label: 'Status', key: 'active', format: (v) => v
+                            ? '<span class="badge badge-success">Active</span>'
+                            : '<span class="badge badge-error">Inactive</span>'
+                    },
+                    { label: 'Created', key: 'createdAt', format: (v) => new Date(v).toLocaleDateString() }
+                ], data || [], [
+                    { label: 'Design', class: 'btn-primary btn-sm', handler: 'viewWorkflow' },
+                    { label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' }
+                ]);
+
+            } catch (e) {
+                container.innerHTML = `<div class="p-4 text-center text-error">Failed to load workflows</div>`;
+            }
+        }
+
+        function viewWorkflow(id) {
+            window.location.href = `/workflows/view?id=${id}`;
+        }
+
+        async function handleCreate(e) {
+            e.preventDefault();
+            setLoading('btnSave', true);
+
+            const formData = new FormData(e.target);
+            const payload = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                active: true
+            };
+
+            try {
+                // 1. Create Workflow
+                const createdWorkflow = await apiCall('/workflows', 'POST', payload);
+                const workflowId = createdWorkflow.id;
+
+                // 2. Handle Template
+                const template = formData.get('template');
+                if (template === 'ONBOARDING') {
+                    await createOnboardingSteps(workflowId);
+                }
+
+                closeModal();
+                loadWorkflows();
+                showMessage('msg', 'Workflow created successfully', 'success');
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                setLoading('btnSave', false);
+            }
+        }
+
+        async function createOnboardingSteps(workflowId) {
+            const steps = [
+                { name: "Offer Acceptance & Confirmation", role: "USER" },
+                { name: "Document Collection & Verification", role: "ADMIN" },
+                { name: "HR Registration", role: "ADMIN" },
+                { name: "IT Account Setup", role: "ADMIN" },
+                { name: "Tools & Access Provisioning", role: "ADMIN" },
+                { name: "Asset Allocation", role: "ADMIN" },
+                { name: "Workstation Setup", role: "ADMIN" },
+                { name: "Orientation & Policy Training", role: "USER" },
+                { name: "Team Introduction", role: "USER" },
+                { name: "Role Training / Technical Training", role: "USER" },
+                { name: "First Task Assignment", role: "ADMIN" },
+                { name: "Onboarding Completion & Feedback", role: "USER" }
+            ];
+
+            const btn = document.getElementById('btnSave');
+            const originalText = btn.dataset.originalText || btn.innerText;
+
+            for (let i = 0; i < steps.length; i++) {
+                // Update button text to show progress
+                btn.innerHTML = `<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:5px">⟳</span> Creating Step ${i + 1}/${steps.length}...`;
+
+                try {
+                    await apiCall(`/workflows/${workflowId}/steps`, 'POST', {
+                        stepName: steps[i].name,
+                        stepOrder: i + 1,
+                        requiredRole: steps[i].role,
+                        autoApprove: false
+                    });
+                } catch (ignore) {
+                    console.error("Failed to create step", steps[i]);
+                }
+            }
+        }
+
+        async function deleteWorkflow(id) {
+            if (!confirm('Are you sure? This cannot be undone.')) return;
+            try {
+                await apiCall(`/workflows/${id}`, 'DELETE');
+                loadWorkflows();
+                showMessage('msg', 'Workflow deleted', 'success');
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+    </script>
+</body>
+
+</html>

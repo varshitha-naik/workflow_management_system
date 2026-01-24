@@ -52,8 +52,9 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/", "/login", "/forgot-password", "/reset-password", "/dashboard", "/profile",
-                                "/users", "/tenants")
+                        .requestMatchers("/", "/login", "/forgot-password", "/reset-password", "/set-password",
+                                "/dashboard", "/profile",
+                                "/users", "/tenants", "/workflows/**", "/workflow-steps")
                         .permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").authenticated()

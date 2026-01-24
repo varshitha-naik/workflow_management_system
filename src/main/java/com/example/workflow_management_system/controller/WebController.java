@@ -54,4 +54,20 @@ public class WebController {
     public String tenants() {
         return "tenants";
     }
+
+    @GetMapping("/workflows")
+    public String workflows() {
+        return "workflows";
+    }
+
+    @GetMapping("/workflows/view")
+    public String workflowDetail(@RequestParam Long id, Model model) {
+        model.addAttribute("workflowId", id);
+        return "workflow-detail";
+    }
+
+    @GetMapping("/workflow-steps")
+    public String workflowSteps() {
+        return "workflow-steps";
+    }
 }

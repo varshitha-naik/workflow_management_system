@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <!-- Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-4">
+                        <a href="/workflows" class="btn btn-outline btn-sm">← Back</a>
+                        <div>
+                            <h1 id="wfName" class="text-2xl font-bold">Loading...</h1>
+                            <p id="wfDesc" class="text-muted">...</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="openEditWorkflowModal()" class="btn btn-outline">
+                            Edit Details
+                        </button>
+                        <button onclick="openStepModal()" class="btn btn-primary">
+                            + Add Step
+                        </button>
+                    </div>
+                </div>
+
+                <div id="msg" class="mb-4"></div>
+
+                <!-- Content Grid -->
+                <div class="grid grid-3 gap-4" style="grid-template-columns: 2fr 1fr;">
+                    <!-- Steps Column -->
+                    <div class="card p-6">
+                        <h3 class="mb-4 text-lg">Workflow Steps</h3>
+                        <div id="stepsContainer" class="mt-4">
+                            <!-- Steps injected here -->
+                            <div class="skeleton w-full h-12 mb-2"></div>
+                            <div class="skeleton w-full h-12 mb-2"></div>
+                        </div>
+                    </div>
+
+                    <!-- Meta Column -->
+                    <div class="card p-6 h-fit">
+                        <h3 class="mb-4 text-lg">Configuration</h3>
+
+                        <div class="form-group">
+                            <label class="form-label">Status</label>
+                            <div id="statusBadge" class="badge badge-success">Active</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Created At</label>
+                            <div id="createdAt" class="text-white">-</div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-gray-700">
+                            <button onclick="toggleStatus()" id="btnStatus"
+                                class="btn btn-outline w-full mb-2">Deactivate</button>
+                            <button onclick="deleteWorkflow()" class="btn btn-danger w-full">Delete Workflow</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Step Modal -->
+    <div id="stepModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="stepModalTitle" class="text-xl mb-4 font-bold">Add Step</h2>
+            <form id="stepForm" onsubmit="handleStepSubmit(event)">
+                <input type="hidden" name="workflowId" th:value="${workflowId}" />
+                <input type="hidden" name="stepId" id="stepId" />
+
+                <div class="form-group">
+                    <label class="form-label">Step Name</label>
+                    <input type="text" name="stepName" class="form-control" required
+                        placeholder="e.g. Manager Approval">
+                </div>
+
+                <div class="grid grid-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Order</label>
+                        <input type="number" name="stepOrder" class="form-control" required value="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Required Role</label>
+                        <select name="requiredRole" class="form-control">
+                            <option value="USER">USER</option>
+                            <option value="ADMIN">ADMIN</option>
+                            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group flex items-center gap-2">
+                    <input type="checkbox" name="autoApprove" id="autoApprove">
+                    <label for="autoApprove" class="m-0 cursor-pointer">Auto Approve (Skip validation)</label>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeStepModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="btnSaveStep" class="btn btn-primary">Save Step</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Workflow Modal -->
+    <div id="editWorkflowModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-xl mb-4 font-bold">Edit Workflow</h2>
+            <form id="editWorkflowForm" onsubmit="handleEditWorkflow(event)">
+                <div class="form-group">
+                    <label class="form-label">Workflow Name</label>
+                    <input type="text" name="wfNameInput" id="wfNameInput" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="wfDescInput" id="wfDescInput" class="form-control">
+                </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeEditWorkflowModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="btnSaveWf" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script th:inline="javascript">
+        const WORKFLOW_ID = [[${ workflowId }]];
+        let currentWorkflow = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadWorkflow();
+            loadSteps();
+        });
+
+        async function loadWorkflow() {
+            try {
+                currentWorkflow = await apiCall(`/workflows/${WORKFLOW_ID}`);
+                document.getElementById('wfName').textContent = currentWorkflow.name;
+                document.getElementById('wfDesc').textContent = currentWorkflow.description || 'No description';
+                document.getElementById('createdAt').textContent = new Date(currentWorkflow.createdAt).toLocaleString();
+
+                const statusBadge = document.getElementById('statusBadge');
+                const btnStatus = document.getElementById('btnStatus');
+
+                if (currentWorkflow.active) {
+                    statusBadge.textContent = 'Active';
+                    btnStatus.textContent = 'Deactivate';
+                    btnStatus.onclick = () => toggleStatus(false);
+                } else {
+                    statusBadge.className = 'badge badge-error';
+                    statusBadge.textContent = 'Inactive';
+                    btnStatus.textContent = 'Activate';
+                    btnStatus.onclick = () => toggleStatus(true);
+                }
+            } catch (e) {
+                alert('Error loading workflow: ' + e.message);
+            }
+        }
+
+        async function loadSteps() {
+            const container = document.getElementById('stepsContainer');
+            try {
+                const steps = await apiCall(`/workflows/${WORKFLOW_ID}/steps`);
+                stepsData = steps || []; // Store globally for edit
+                if (!steps || steps.length === 0) {
+                    container.innerHTML = '<div class="text-muted text-center p-4">No steps defined yet. Start by adding one.</div>';
+                    return;
+                }
+
+                // Sort by order
+                steps.sort((a, b) => a.stepOrder - b.stepOrder);
+
+                let html = '<div class="flex flex-col gap-4">';
+                steps.forEach((step, index) => {
+                    const isLast = index === steps.length - 1;
+                    html += `
+                        <div class="relative flex gap-4">
+                            <!-- Timeline Line -->
+                            <div class="flex flex-col items-center">
+                                <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-white z-10 box-shadow-neon">
+                                    ${step.stepOrder}
+                                </div>
+                                ${!isLast ? '<div class="w-0.5 bg-gray-700 flex-1 my-1"></div>' : ''}
+                            </div>
+                            
+                            <!-- Content -->
+                            <div class="flex-1 card p-4 mb-0 border-l-4 ${step.autoApprove ? 'border-l-success' : 'border-l-primary'}">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="text-white font-bold text-md m-0">${step.stepName}</h4>
+                                        <div class="flex gap-2 mt-2">
+                                            <span class="badge ${getRoleBadgeClass(step.requiredRole)}">${step.requiredRole}</span>
+                                            ${step.autoApprove ? '<span class="badge badge-success">Auto-Approve</span>' : ''}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <button onclick="moveStep(${step.id}, -1)" class="btn btn-sm btn-outline px-2 mr-1" title="Move Up" ${index === 0 ? 'disabled style="opacity:0.3"' : ''}>
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                                        </button>
+                                        <button onclick="moveStep(${step.id}, 1)" class="btn btn-sm btn-outline px-2 mr-2" title="Move Down" ${isLast ? 'disabled style="opacity:0.3"' : ''}>
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </button>
+                                        
+                                        <button onclick="editStep(${step.id})" class="text-gray-400 hover:text-white transition mr-2">
+                                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                                        </button>
+                                        <button onclick="deleteStep(${step.id})" class="text-error hover:text-white transition">
+                                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+
+            } catch (e) {
+                container.innerHTML = '<div class="text-error">Failed to load steps</div>';
+            }
+        }
+
+        function getRoleBadgeClass(role) {
+            if (role === 'SUPER_ADMIN') return 'badge-error'; // Red/Pink
+            if (role === 'ADMIN') return 'badge-warning';
+            return 'badge-blue';
+        }
+
+        // --- Actions ---
+
+        // Step Modal
+        let stepsData = [];
+
+        function openStepModal(stepId = null) {
+            const modal = document.getElementById('stepModal');
+            const form = document.getElementById('stepForm');
+            const title = document.getElementById('stepModalTitle');
+            const btn = document.getElementById('btnSaveStep');
+
+            modal.classList.add('open');
+            form.reset();
+
+            if (stepId) {
+                const step = stepsData.find(s => s.id === stepId);
+                if (step) {
+                    title.textContent = 'Edit Step';
+                    btn.textContent = 'Update Step';
+                    document.getElementById('stepId').value = step.id;
+                    form.elements['stepName'].value = step.stepName;
+                    form.elements['stepOrder'].value = step.stepOrder;
+                    form.elements['requiredRole'].value = step.requiredRole;
+                    form.elements['autoApprove'].checked = step.autoApprove;
+                }
+            } else {
+                title.textContent = 'Add Step';
+                btn.textContent = 'Add Step';
+                document.getElementById('stepId').value = '';
+                // Default order auto-increment could be nice, but keeping simple for now
+            }
+        }
+
+        function editStep(id) {
+            openStepModal(id);
+        }
+
+        function closeStepModal() {
+            document.getElementById('stepModal').classList.remove('open');
+        }
+
+        async function handleStepSubmit(e) {
+            e.preventDefault();
+            setLoading('btnSaveStep', true);
+
+            const formData = new FormData(e.target);
+            const stepId = formData.get('stepId');
+
+            const payload = {
+                stepName: formData.get('stepName'),
+                stepOrder: parseInt(formData.get('stepOrder')),
+                requiredRole: formData.get('requiredRole'),
+                autoApprove: formData.get('autoApprove') === 'on'
+            };
+
+            try {
+                if (stepId) {
+                    await apiCall(`/workflow-steps/${stepId}`, 'PUT', payload);
+                    showMessage('msg', 'Step updated', 'success');
+                } else {
+                    await apiCall(`/workflows/${WORKFLOW_ID}/steps`, 'POST', payload);
+                    showMessage('msg', 'Step added', 'success');
+                }
+                closeStepModal();
+                loadSteps();
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                setLoading('btnSaveStep', false);
+            }
+        }
+
+        async function moveStep(stepId, direction) {
+            // Direction: -1 (up), 1 (down)
+            const index = stepsData.findIndex(s => s.id === stepId);
+            if (index === -1) return;
+
+            const currentStep = stepsData[index];
+            const targetIndex = index + direction;
+
+            if (targetIndex < 0 || targetIndex >= stepsData.length) return;
+            const targetStep = stepsData[targetIndex];
+
+            // Swap orders logic:
+            // Since we sorted by order, stepsData is ordered.
+            // But steps might have gaps in order numbers (e.g. 1, 3, 5).
+            // Simplest logic: Swap their `stepOrder` values.
+
+            const tempOrder = currentStep.stepOrder;
+            const newOrder = targetStep.stepOrder;
+
+            // Optimistic update
+            // Not doing optimistic, just waiting for API
+            // Actually, if they strictly equal, it's a conflict, but usually they differ.
+            // If they are equal for some reason, we just want to swap.
+
+            try {
+                // Update both
+                // We run them sequentially to avoid unique constraint if any (though usually OK in loose systems)
+                // Ideally backend has a "reorder" endpoint, but we must use existing CRUD.
+
+                await apiCall(`/workflow-steps/${currentStep.id}`, 'PUT', {
+                    stepName: currentStep.stepName,
+                    requiredRole: currentStep.requiredRole,
+                    autoApprove: currentStep.autoApprove,
+                    stepOrder: newOrder
+                });
+
+                await apiCall(`/workflow-steps/${targetStep.id}`, 'PUT', {
+                    stepName: targetStep.stepName,
+                    requiredRole: targetStep.requiredRole,
+                    autoApprove: targetStep.autoApprove,
+                    stepOrder: tempOrder
+                });
+
+                // Reload to refresh list
+                loadSteps();
+                showMessage('msg', 'Order updated', 'success');
+
+            } catch (e) {
+                alert('Reordering failed: ' + e.message);
+                loadSteps(); // revert
+            }
+        }
+
+        // Workflow Edit Modal
+        function openEditWorkflowModal() {
+            if (!currentWorkflow) return;
+            const modal = document.getElementById('editWorkflowModal');
+            modal.classList.add('open');
+            document.getElementById('wfNameInput').value = currentWorkflow.name;
+            document.getElementById('wfDescInput').value = currentWorkflow.description || '';
+        }
+
+        function closeEditWorkflowModal() {
+            document.getElementById('editWorkflowModal').classList.remove('open');
+        }
+
+        async function handleEditWorkflow(e) {
+            e.preventDefault();
+            setLoading('btnSaveWf', true);
+
+            const name = document.getElementById('wfNameInput').value;
+            const desc = document.getElementById('wfDescInput').value;
+
+            const payload = {
+                name: name,
+                description: desc,
+                active: currentWorkflow.active // maintain status
+            };
+
+            try {
+                await apiCall(`/workflows/${WORKFLOW_ID}`, 'PUT', payload);
+                closeEditWorkflowModal();
+                loadWorkflow(); // reload details
+
+                // Show toast or message - creating a temp message element since id='msg' might be missing in this file (it is in workflows.html but looking at valid html above, there is no msg container inside workflow-detail.html's main content, will add one dynamically or alert)
+                // Actually workflow-detail.html doesn't have #msg. Let's rely on reload visual update.
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                setLoading('btnSaveWf', false);
+            }
+        }
+
+        async function deleteStep(id) {
+            if (!confirm('Delete this step?')) return;
+            try {
+                await apiCall(`/workflow-steps/${id}`, 'DELETE');
+                loadSteps();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function toggleStatus(active) {
+            try {
+                await apiCall(`/workflows/${WORKFLOW_ID}/status?active=${active}`, 'PATCH');
+                loadWorkflow(); // reload
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteWorkflow() {
+            if (!confirm('DELETE WORKFLOW? This cannot be undone.')) return;
+            try {
+                await apiCall(`/workflows/${WORKFLOW_ID}`, 'DELETE');
+                window.location.href = '/workflows';
+            } catch (e) { alert(e.message); }
+        }
+    </script>
+</body>
+
+</html>

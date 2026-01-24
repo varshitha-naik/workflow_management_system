@@ -1,75 +1,67 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8">
-    <title>User Management - Workflow System</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div th:replace="~{fragments/layout :: head}"></div>
 </head>
 
 <body>
-    <header class="header">
-        <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow Sys</a>
-            <div class="nav-user">
-                <a href="/dashboard" class="profile-link">Dashboard</a>
-                <a href="/profile" class="profile-link">Profile</a>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
-        </div>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
 
-    <div class="container-dash">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h2>User Management</h2>
-                <p class="subtitle" style="margin-bottom:0">Manage system access and roles.</p>
-            </div>
-            <button class="btn btn-sm" onclick="openCreateModal()">
-                + New User
-            </button>
-        </div>
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
 
-        <!-- Filter for Super Admins -->
-        <div id="filterContainer" class="card mb-6 hidden" style="padding: 1.5rem;">
-            <div class="flex items-center gap-4">
-                <label for="tenantFilter" style="margin:0; white-space:nowrap;">Filter by Tenant:</label>
-                <select id="tenantFilter" style="max-width: 300px;">
-                    <option value="">All Tenants</option>
-                </select>
-            </div>
-        </div>
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>User Access</h1>
+                        <p class="text-muted">Manage team members and permissions</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openCreateModal()">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        New User
+                    </button>
+                </div>
 
-        <div class="card" style="padding: 0; overflow: hidden;">
-            <div id="loading" class="text-center p-4" style="padding: 2rem;">Loading users...</div>
-            <div id="error" class="alert alert-error hidden" style="margin: 1rem;"></div>
+                <!-- Filters -->
+                <div id="filterContainer" class="card p-4 mb-6 hidden flex items-center gap-4">
+                    <label class="font-bold text-sm">Tenant Scope:</label>
+                    <select id="tenantFilter" class="form-control w-64">
+                        <option value="">All Tenants</option>
+                    </select>
+                </div>
 
-            <div id="usersTableContainer"></div>
+                <!-- Table Area -->
+                <div class="card p-0 overflow-hidden">
+                    <div id="loading" class="p-8 text-center text-muted">Loading user directory...</div>
+                    <div id="usersTableContainer"></div>
+                </div>
+            </main>
         </div>
     </div>
 
     <!-- User Modal -->
-    <div id="createModal" class="hidden"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100;">
-        <div class="card" style="width: 100%; max-width: 500px; padding: 2rem;">
-            <h3 id="modalTitle" class="mb-4">Create New User</h3>
-
-            <div id="modalError" class="hidden mb-4 alert alert-error"></div>
+    <div id="createModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Create User</h2>
+            <div id="modalError" class="alert alert-error hidden mb-4"></div>
 
             <form id="createUserForm">
                 <input type="hidden" id="editUserId">
 
-                <!-- Tenant Select Removed -->
-
-                <div class="flex gap-4 mb-4">
-                    <div class="w-full">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" required>
+                <div class="grid grid-2 gap-4 mb-4">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" id="username" class="form-control" required>
                     </div>
-                    <div class="w-full">
-                        <label for="role">Role</label>
-                        <select id="role" required>
+                    <div class="form-group">
+                        <label class="form-label">Role</label>
+                        <select id="role" class="form-control" required>
                             <option value="USER">User</option>
                             <option value="ADMIN" id="roleAdminOption">Admin</option>
                         </select>
@@ -77,39 +69,40 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" required>
+                    <label class="form-label">Email Address</label>
+                    <input type="email" id="email" class="form-control" required>
                 </div>
 
-                <div id="activeGroup" class="form-group mb-6">
-                    <label class="flex items-center gap-2" style="cursor: pointer;">
-                        <input type="checkbox" id="active" checked style="width: auto;">
-                        <span>Active Account</span>
-                    </label>
+                <div id="activeGroup" class="form-group mb-6 hidden">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="active" checked>
+                        <label for="active" class="m-0 cursor-pointer text-sm">Active Account</label>
+                    </div>
                 </div>
 
-                <div class="flex justify-end gap-2">
-                    <button type="button" onclick="closeCreateModal()" class="btn btn-secondary btn-sm">Cancel</button>
-                    <button type="submit" id="saveBtn" class="btn btn-sm">Save User</button>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeCreateModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="saveBtn" class="btn btn-primary">Save User</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
-    <script>
-        const ctx = requireAuth(['SUPER_ADMIN', 'ADMIN']);
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
 
+    <script>
+        // JS Logic Preserved and Adapted
         window.usersData = [];
 
-        function logout() {
-            clearAuth();
-        }
+        document.addEventListener('DOMContentLoaded', init);
 
         async function init() {
+            const ctx = requireAuth(['SUPER_ADMIN', 'ADMIN']);
+            if (!ctx) return;
+
             if (hasRole('SUPER_ADMIN')) {
                 document.getElementById('filterContainer').classList.remove('hidden');
-                // document.getElementById('tenantSelectGroup').classList.remove('hidden'); // Removed
                 await loadTenants();
             }
             loadUsers();
@@ -117,35 +110,22 @@
             document.getElementById('tenantFilter').addEventListener('change', (e) => {
                 loadUsers(e.target.value);
             });
+
+            document.getElementById('createUserForm').addEventListener('submit', handleSave);
         }
 
         async function loadTenants() {
             try {
                 const tenants = await apiCall('/tenants');
                 const filter = document.getElementById('tenantFilter');
-                // const modal = document.getElementById('tenantSelect');
-
-                // Keep first
                 filter.innerHTML = '<option value="">All Tenants</option>';
-                // modal.innerHTML = '<option value="">Select Tenant</option>';
-
-                tenants.forEach(t => {
-                    filter.add(new Option(t.name, t.id));
-                    // modal.add(new Option(t.name, t.id));
-                });
+                tenants.forEach(t => filter.add(new Option(t.name, t.id)));
             } catch (e) {
                 console.error("Tenants load failed", e);
             }
         }
 
         async function loadUsers(tenantId = null) {
-
-            // Check if regular USER, redirect (client-side safety)
-            if (hasRole('USER')) {
-                window.location.href = '/dashboard';
-                return;
-            }
-
             const loading = document.getElementById('loading');
             const container = document.getElementById('usersTableContainer');
 
@@ -162,19 +142,18 @@
                 loading.classList.add('hidden');
 
                 renderTable('usersTableContainer', [
-                    { label: 'Username', key: 'username' },
+                    { label: 'Username', key: 'username', format: v => `<span class="font-bold text-white">${v}</span>` },
                     { label: 'Email', key: 'email' },
-                    { label: 'Role', key: 'role', format: (v) => `<span class="badge badge-warning" style="font-size:0.7rem">${v}</span>` },
+                    { label: 'Role', key: 'role', format: (v) => `<span class="badge ${v === 'USER' ? 'badge-blue' : 'badge-warning'}">${v}</span>` },
                     { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
-                    { label: 'Tenant ID', key: 'tenantId' }
+                    { label: 'Tenant', key: 'tenantId' }
                 ], users, [
                     {
                         label: 'Edit',
-                        class: 'btn-secondary',
+                        class: 'btn-outline btn-sm', // styling
                         handler: 'editUser',
                         condition: (row) => {
                             if (hasRole('ADMIN')) {
-                                // Admin cannot edit Admin or SuperAdmin
                                 if (row.role === 'ADMIN' || row.role === 'SUPER_ADMIN') return false;
                             }
                             return true;
@@ -184,11 +163,10 @@
 
             } catch (err) {
                 loading.classList.add('hidden');
-                showMessage('error', err.message);
+                container.innerHTML = `<div class="p-4 text-center text-error">${err.message}</div>`;
             }
         }
 
-        // Exposed to global scope for 'onclick' in table
         window.editUser = function (id) {
             const user = window.usersData.find(u => u.id === id);
             if (!user) return;
@@ -202,12 +180,9 @@
 
             document.getElementById('activeGroup').classList.remove('hidden');
 
-            // if (hasRole('SUPER_ADMIN')) {
-            //    document.getElementById('tenantSelect').value = user.tenantId;
-            // }
+            // Adjust role restriction if needed? (Admin editing user)
 
-            hideMessage('modalError');
-            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('createModal').classList.add('open');
         };
 
         function openCreateModal() {
@@ -216,7 +191,6 @@
             document.getElementById('editUserId').value = '';
             document.getElementById('activeGroup').classList.add('hidden');
 
-            // Role restriction for Create
             if (hasRole('ADMIN')) {
                 document.getElementById('roleAdminOption').disabled = true;
                 document.getElementById('role').value = 'USER';
@@ -224,41 +198,40 @@
                 document.getElementById('roleAdminOption').disabled = false;
             }
 
-            hideMessage('modalError');
-            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('modalError').classList.add('hidden');
+            document.getElementById('createModal').classList.add('open');
         }
 
         function closeCreateModal() {
-            document.getElementById('createModal').classList.add('hidden');
+            document.getElementById('createModal').classList.remove('open');
         }
 
-        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+        async function handleSave(e) {
             e.preventDefault();
             const id = document.getElementById('editUserId').value;
             const isEdit = !!id;
 
             setLoading('saveBtn', true);
-            hideMessage('modalError');
+            document.getElementById('modalError').classList.add('hidden');
 
             try {
                 const body = {
                     username: document.getElementById('username').value,
                     email: document.getElementById('email').value,
-                    role: document.getElementById('role').value,
                     role: document.getElementById('role').value
-                    // tenantId removed
                 };
 
                 if (isEdit) {
-                    body.active = document.getElementById('active').checked;
-                }
-
-                // if (hasRole('SUPER_ADMIN') && !body.tenantId) {
-                //    throw new Error("Tenant is required");
-                // }
-
-                if (isEdit) {
                     await apiCall(`/users/${id}`, 'PUT', body);
+
+                    // Handle Status Update separately since it was removed from UserRequest
+                    const isActive = document.getElementById('active').checked;
+                    // We should only call this if status actually changed, but for simplicity calling it is safe
+                    // or we check against window.usersData
+                    const currentUser = window.usersData.find(u => u.id == id);
+                    if (currentUser && currentUser.active !== isActive) {
+                        await apiCall(`/users/${id}/status`, 'PATCH', { active: isActive });
+                    }
                 } else {
                     await apiCall('/users', 'POST', body);
                 }
@@ -266,16 +239,14 @@
                 closeCreateModal();
                 loadUsers(document.getElementById('tenantFilter').value);
 
-            } catch (e) {
+            } catch (err) {
                 const errDiv = document.getElementById('modalError');
-                errDiv.textContent = e.message;
+                errDiv.textContent = err.message;
                 errDiv.classList.remove('hidden');
             } finally {
                 setLoading('saveBtn', false, 'Save User');
             }
-        });
-
-        init();
+        }
     </script>
 </body>
 

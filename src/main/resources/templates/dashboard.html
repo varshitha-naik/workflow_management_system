@@ -1,63 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard - Workflow System</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div th:replace="~{fragments/layout :: head}"></div>
 </head>
 
 <body>
-    <header class="header">
-        <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow Sys</a>
-            <div class="nav-user">
-                <span id="navUserDisplay" class="hidden-mobile">Loading...</span>
-                <a href="/profile" class="profile-link">Profile</a>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
-        </div>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
 
-    <div class="container-dash">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h1 id="welcomeTitle">Dashboard</h1>
-                <p class="subtitle" id="welcomeSubtitle" style="margin-bottom:0">Overview of your system</p>
-            </div>
-            <div id="tenantTag" class="badge badge-success hidden"></div>
-        </div>
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
 
-        <!-- Stats Grid -->
-        <div id="statsGrid" class="dashboard-grid mb-6">
-            <!-- Injected by JS -->
-        </div>
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 id="welcomeTitle">Dashboard</h1>
+                        <p class="text-muted">System Overview & Analytics</p>
+                    </div>
+                    <div id="tenantTag" class="badge badge-blue hidden"></div>
+                </div>
 
-        <!-- Action Modules -->
-        <h2 class="mt-8">Quick Actions</h2>
-        <div id="modulesGrid" class="dashboard-grid">
-            <a href="/profile" class="card"
-                style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
-                <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">My Profile</h3>
-                <p class="text-muted" style="font-size: 0.9rem;">View and manage your account details.</p>
-            </a>
-            <!-- Logic will append other modules -->
+                <!-- Stats Grid -->
+                <div id="statsGrid" class="grid grid-4 mb-6">
+                    <!-- Default local stat -->
+                    <div class="card p-4">
+                        <div class="text-muted text-sm">System Status</div>
+                        <div class="text-2xl font-bold text-success mt-2">Operational</div>
+                    </div>
+                </div>
+
+                <!-- Action Modules -->
+                <h2 class="mb-4">Quick Actions</h2>
+                <div id="modulesGrid" class="grid grid-3">
+                    <a href="/profile" class="card hover:border-primary cursor-pointer block">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="p-2 rounded bg-opacity-10 bg-indigo-500 text-indigo-400">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                                    <path
+                                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                                </svg>
+                            </span>
+                            <h3 class="m-0 text-white">My Profile</h3>
+                        </div>
+                        <p class="text-muted text-sm">View details</p>
+                    </a>
+                </div>
+            </main>
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <!-- Dashboard Logic -->
     <script>
-        const ctx = requireAuth();
-
-        function logout() {
-            clearAuth();
-        }
-
-        async function initDashboard() {
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ctx = requireAuth();
             if (!ctx) return;
 
-            // Set Headers
             document.getElementById('welcomeTitle').textContent = `Hello, ${ctx.username}`;
             if (ctx.tenantName) {
                 const tag = document.getElementById('tenantTag');
@@ -70,23 +73,19 @@
 
             // --- SUPER_ADMIN Logic ---
             if (hasRole('SUPER_ADMIN')) {
-                // 1. Module: Manage Tenants
+                // Modules
                 modulesGrid.innerHTML += `
-                    <a href="/tenants" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
-                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Manage Tenants</h3>
-                        <p class="text-muted" style="font-size: 0.9rem;">Create, update, and remove system tenants.</p>
-                    </a>
-                `;
+                     <a href="/tenants" class="card block hover:border-primary">
+                         <h3 class="text-primary mb-1">Manage Tenants</h3>
+                         <p class="text-sm">Create and remove system tenants</p>
+                     </a>
+                     <a href="/users" class="card block hover:border-primary">
+                         <h3 class="text-primary mb-1">Global Users</h3>
+                         <p class="text-sm">Administer users across all tenants</p>
+                     </a>
+                 `;
 
-                // 2. Module: Manage Global Users
-                modulesGrid.innerHTML += `
-                    <a href="/users" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
-                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Manage Users</h3>
-                        <p class="text-muted" style="font-size: 0.9rem;">Administer users across all tenants.</p>
-                    </a>
-                `;
-
-                // 3. Stats: Fetch Counts
+                // Stats
                 try {
                     const [tenants, users] = await Promise.all([
                         apiCall('/tenants'),
@@ -95,70 +94,33 @@
 
                     if (tenants) {
                         statsGrid.innerHTML += `
-                            <div class="stat-card">
-                                <div class="stat-value">${tenants.length}</div>
-                                <div class="stat-label">Active Tenants</div>
+                            <div class="card p-4">
+                                <div class="text-muted text-sm">Active Tenants</div>
+                                <div class="text-3xl font-bold mt-2 text-white">${tenants.length}</div>
                             </div>
-                        `;
+                         `;
                     }
                     if (users) {
                         statsGrid.innerHTML += `
-                            <div class="stat-card">
-                                <div class="stat-value">${users.length}</div>
-                                <div class="stat-label">Total Users</div>
+                            <div class="card p-4">
+                                <div class="text-muted text-sm">Total Users</div>
+                                <div class="text-3xl font-bold mt-2 text-white">${users.length}</div>
                             </div>
-                        `;
-                    }
-                } catch (e) {
-                    console.error("Failed to load stats", e);
-                }
-            }
-
-            // --- ADMIN Logic ---
-            else if (hasRole('ADMIN')) {
-                // 1. Module: Manage Users
-                modulesGrid.innerHTML += `
-                    <a href="/users" class="card" style="padding: 1.5rem; text-decoration: none; color: inherit; display: block;">
-                        <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem; color: var(--primary);">Team Members</h3>
-                        <p class="text-muted" style="font-size: 0.9rem;">Manage users within your organization.</p>
-                    </a>
-                `;
-
-                // 2. Module: Tenant Info (View Only)
-                // We link to a read-only view or just show it here? 
-                // Let's link to tenants page but maybe we need a dedicated "My Tenant" page since /tenants is a list.
-                // Or maybe /profile deals with it? 
-                // Strict API: GET /api/tenants/{id} is allowed.
-                // We can just show a Stat card for "My Tenant" if we want, or add a link.
-                // For now, let's just show Users stat.
-
-                try {
-                    const users = await apiCall('/users');
-                    if (users) {
-                        statsGrid.innerHTML += `
-                            <div class="stat-card">
-                                <div class="stat-value">${users.length}</div>
-                                <div class="stat-label">Team Members</div>
-                            </div>
-                        `;
+                         `;
                     }
                 } catch (e) { console.error(e); }
             }
 
-            // --- USER Logic ---
-            else {
-                // Just Profile, already added default.
-                // Maybe a stat for "My Account Status"
-                statsGrid.innerHTML += `
-                    <div class="stat-card">
-                        <div class="stat-value">Active</div>
-                        <div class="stat-label">Account Status</div>
-                    </div>
-                `;
+            // --- ADMIN Logic ---
+            else if (hasRole('ADMIN')) {
+                modulesGrid.innerHTML += `
+                     <a href="/users" class="card block hover:border-primary">
+                         <h3 class="text-primary mb-1">Team Members</h3>
+                         <p class="text-sm">Manage users in ${ctx.tenantName || 'organization'}</p>
+                     </a>
+                 `;
             }
-        }
-
-        initDashboard();
+        });
     </script>
 </body>
 

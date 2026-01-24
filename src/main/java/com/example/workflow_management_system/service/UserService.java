@@ -137,7 +137,6 @@ public class UserService {
         user.setEmail(request.email());
         user.setRole(request.role());
         // user.setTenant(tenant); // Tenant cannot be changed via update
-        user.setActive(request.active());
 
         User updatedUser = userRepository.save(user);
         return mapToResponse(updatedUser);

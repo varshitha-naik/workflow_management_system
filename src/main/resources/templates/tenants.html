@@ -1,92 +1,90 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Tenant Management - Workflow System</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div th:replace="~{fragments/layout :: head}"></div>
 </head>
 
 <body>
-    <header class="header">
-        <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow Sys</a>
-            <div class="nav-user">
-                <a href="/dashboard" class="profile-link">Dashboard</a>
-                <a href="/profile" class="profile-link">Profile</a>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
-        </div>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
 
-    <div class="container-dash">
-        <div class="flex justify-between items-center mb-6">
-            <div>
-                <h2>Tenant Management</h2>
-                <p class="subtitle" style="margin-bottom:0">Provision and manage organizations.</p>
-            </div>
-            <button class="btn btn-sm" onclick="openCreateModal()">
-                + New Tenant
-            </button>
-        </div>
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
 
-        <div class="card" style="padding: 0; overflow: hidden;">
-            <div id="loading" class="text-center p-4" style="padding: 2rem;">Loading tenants...</div>
-            <div id="error" class="alert alert-error hidden" style="margin: 1rem;"></div>
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>Tenant Management</h1>
+                        <p class="text-muted">Provision and manage organizations</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="openCreateModal()">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        New Tenant
+                    </button>
+                </div>
 
-            <div id="tenantsTableContainer"></div>
+                <!-- Table Area -->
+                <div class="card p-0 overflow-hidden">
+                    <div id="loading" class="p-8 text-center text-muted">Loading tenants...</div>
+                    <div id="tenantsTableContainer"></div>
+                </div>
+            </main>
         </div>
     </div>
 
     <!-- Tenant Modal -->
-    <div id="createModal" class="hidden"
-        style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100;">
-        <div class="card" style="width: 100%; max-width: 500px; padding: 2rem;">
-            <h3 id="modalTitle" class="mb-4">Provision Tenant</h3>
-
-            <div id="modalError" class="hidden mb-4 alert alert-error"></div>
+    <div id="createModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Provision Tenant</h2>
+            <div id="modalError" class="alert alert-error hidden mb-4"></div>
 
             <form id="createTenantForm">
                 <input type="hidden" id="editTenantId">
 
                 <div class="form-group">
-                    <label for="name">Organization Name</label>
-                    <input type="text" id="name" required placeholder="e.g. Acme Corp">
+                    <label class="form-label">Organization Name</label>
+                    <input type="text" id="name" class="form-control" placeholder="e.g. Acme Corp" required>
                 </div>
 
                 <!-- Provisioning Fields (Create Only) -->
-                <div id="provisionFields">
+                <div id="provisionFields" class="p-4 bg-gray-800 rounded border border-gray-700 mb-4">
+                    <h4 class="text-sm font-bold mb-3 text-white">Initial Administrator</h4>
                     <div class="form-group">
-                        <label for="adminUsername">Initial Admin Username</label>
-                        <input type="text" id="adminUsername" placeholder="admin_acme">
-                        <small class="text-muted">This user will be created as ADMIN.</small>
+                        <label class="form-label">Admin Username</label>
+                        <input type="text" id="adminUsername" class="form-control" placeholder="admin_acme">
+                        <small class="text-muted block mt-1">This user will be created with ADMIN role.</small>
                     </div>
 
-                    <div class="form-group">
-                        <label for="adminEmail">Initial Admin Email</label>
-                        <input type="email" id="adminEmail" placeholder="admin@acme.com">
+                    <div class="form-group mb-0">
+                        <label class="form-label">Admin Email</label>
+                        <input type="email" id="adminEmail" class="form-control" placeholder="admin@acme.com">
                     </div>
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
-                    <button type="button" onclick="closeCreateModal()" class="btn btn-secondary btn-sm">Cancel</button>
-                    <button type="submit" id="saveBtn" class="btn btn-sm">Provision Tenant</button>
+                    <button type="button" onclick="closeCreateModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="saveBtn" class="btn btn-primary">Provision Tenant</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
-    <script>
-        // STRICT: Only Super Admin
-        requireAuth(['SUPER_ADMIN']);
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
 
+    <script>
         window.tenantsData = [];
 
-        function logout() {
-            clearAuth();
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = requireAuth(['SUPER_ADMIN']);
+            if (ctx) loadTenants();
+            document.getElementById('createTenantForm').addEventListener('submit', handleSave);
+        });
 
         async function loadTenants() {
             const loading = document.getElementById('loading');
@@ -103,16 +101,15 @@
 
                 renderTable('tenantsTableContainer', [
                     { label: 'ID', key: 'id' },
-                    { label: 'Name', key: 'name', format: (v) => `<span style="font-weight:600">${v}</span>` },
-                    // Backend doesn't return createdDate/Status in simple list? Check response. Assuming simple DTO first.
+                    { label: 'Name', key: 'name', format: (v) => `<span class="font-bold text-white">${v}</span>` }
                 ], tenants, [
-                    { label: 'Edit', class: 'btn-secondary', handler: 'editTenant' },
-                    { label: 'Delete', class: 'btn-secondary', handler: 'deleteTenant' }
+                    { label: 'Edit', class: 'btn-outline btn-sm', handler: 'editTenant' },
+                    { label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteTenant' }
                 ]);
 
             } catch (err) {
                 loading.classList.add('hidden');
-                showMessage('error', err.message);
+                container.innerHTML = `<div class="p-4 text-center text-error">${err.message}</div>`;
             }
         }
 
@@ -130,14 +127,12 @@
             document.getElementById('adminEmail').required = false;
 
             document.getElementById('saveBtn').textContent = 'Update Tenant';
-
-            hideMessage('modalError');
-            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('modalError').classList.add('hidden');
+            document.getElementById('createModal').classList.add('open');
         };
 
         window.deleteTenant = async function (id) {
             if (!confirm('Are you sure you want to delete this tenant? This action cannot be undone.')) return;
-
             try {
                 await apiCall(`/tenants/${id}`, 'DELETE');
                 loadTenants();
@@ -157,22 +152,21 @@
             document.getElementById('adminEmail').required = true;
 
             document.getElementById('saveBtn').textContent = 'Provision Tenant';
-
-            hideMessage('modalError');
-            document.getElementById('createModal').classList.remove('hidden');
+            document.getElementById('modalError').classList.add('hidden');
+            document.getElementById('createModal').classList.add('open');
         }
 
         function closeCreateModal() {
-            document.getElementById('createModal').classList.add('hidden');
+            document.getElementById('createModal').classList.remove('open');
         }
 
-        document.getElementById('createTenantForm').addEventListener('submit', async (e) => {
+        async function handleSave(e) {
             e.preventDefault();
             const id = document.getElementById('editTenantId').value;
             const isEdit = !!id;
 
             setLoading('saveBtn', true);
-            hideMessage('modalError');
+            document.getElementById('modalError').classList.add('hidden');
 
             try {
                 if (isEdit) {
@@ -197,9 +191,7 @@
             } finally {
                 setLoading('saveBtn', false, isEdit ? 'Update Tenant' : 'Provision Tenant');
             }
-        });
-
-        loadTenants();
+        }
     </script>
 </body>
 

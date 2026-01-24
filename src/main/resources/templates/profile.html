@@ -1,70 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8">
-    <title>Profile - Workflow System</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <div th:replace="~{fragments/layout :: head}"></div>
 </head>
 
 <body>
-    <header class="header">
-        <div class="header-content">
-            <a href="/dashboard" class="brand">Workflow Sys</a>
-            <div class="nav-user">
-                <a href="/dashboard" class="profile-link">Dashboard</a>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
-        </div>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
 
-    <div class="container" style="max-width: 600px;">
-        <div class="card p-6">
-            <h2 class="mb-6">Account Settings</h2>
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
 
-            <div id="message" class="hidden alert"></div>
+            <main class="page-content">
+                <div class="max-w-2xl mx-auto">
+                    <h1 class="mb-6">My Profile</h1>
 
-            <form id="profileForm">
-                <div class="form-group">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" disabled class="bg-gray-100 cursor-not-allowed">
-                    <small class="text-muted">Email cannot be changed.</small>
-                </div>
+                    <div class="card p-8">
+                        <div id="message" class="alert alert-error hidden mb-6"></div>
 
-                <div class="form-group mt-4">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required>
-                </div>
+                        <form id="profileForm">
+                            <div class="form-group">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" id="email" disabled
+                                    class="form-control opacity-60 cursor-not-allowed">
+                                <small class="text-muted mt-1 block">Email address cannot be changed</small>
+                            </div>
 
-                <div class="mt-8 mb-4 border-t pt-4">
-                    <h3 class="text-sm font-semibold uppercase text-muted mb-4">Security</h3>
+                            <div class="form-group mt-4">
+                                <label class="form-label">Username</label>
+                                <input type="text" id="username" class="form-control" required>
+                            </div>
 
-                    <div class="form-group">
-                        <label for="password">New Password</label>
-                        <input type="password" id="password" placeholder="Leave blank to keep current">
+                            <div class="mt-8 mb-6 border-t border-gray-700 pt-6">
+                                <h3 class="text-lg font-bold mb-4">Security</h3>
+
+                                <div class="grid grid-2 gap-4">
+                                    <div class="form-group">
+                                        <label class="form-label">New Password</label>
+                                        <input type="password" id="password" class="form-control"
+                                            placeholder="Leave blank to keep current">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label class="form-label">Confirm Password</label>
+                                        <input type="password" id="confirmPassword" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end pt-4">
+                                <button type="submit" id="submitBtn" class="btn btn-primary">Save Changes</button>
+                            </div>
+                        </form>
                     </div>
-
-                    <div class="form-group">
-                        <label for="confirmPassword">Confirm Password</label>
-                        <input type="password" id="confirmPassword">
-                    </div>
                 </div>
-
-                <div class="flex justify-end">
-                    <button type="submit" id="submitBtn" class="btn" style="width: auto;">Save Changes</button>
-                </div>
-            </form>
+            </main>
         </div>
     </div>
 
-    <script src="/js/app.js"></script>
-    <script>
-        const ctx = requireAuth();
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
 
-        function logout() {
-            clearAuth();
-        }
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctx = requireAuth();
+            if (ctx) loadProfile();
+            document.getElementById('profileForm').addEventListener('submit', handleSave);
+        });
 
         async function loadProfile() {
             try {
@@ -72,16 +77,17 @@
                 document.getElementById('email').value = user.email;
                 document.getElementById('username').value = user.username;
             } catch (err) {
+                console.error(err);
                 showMessage('message', 'Failed to load profile.');
             }
         }
 
-        loadProfile();
-
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+        async function handleSave(e) {
             e.preventDefault();
-            hideMessage('message');
-            setLoading('submitBtn', true, 'Saving...');
+            const msgEl = document.getElementById('message');
+            msgEl.classList.add('hidden');
+
+            setLoading('submitBtn', true);
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -99,14 +105,14 @@
             try {
                 await apiCall('/users/me', 'PUT', body);
                 showMessage('message', 'Profile updated successfully.', 'success');
-                password.value = '';
-                confirmPassword.value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('confirmPassword').value = '';
             } catch (err) {
                 showMessage('message', err.message || 'Failed to update profile.', 'error');
             } finally {
                 setLoading('submitBtn', false, 'Save Changes');
             }
-        });
+        }
     </script>
 </body>
 

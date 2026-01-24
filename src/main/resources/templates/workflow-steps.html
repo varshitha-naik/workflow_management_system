@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <!-- Header -->
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>Workflow Steps Management</h1>
+                        <p class="text-muted">Manage steps for all workflows in a single view.</p>
+                    </div>
+                </div>
+
+                <div id="msg" class="mb-4"></div>
+
+                <!-- Container for All Workflows & Steps -->
+                <div id="masterContainer" style="display: flex; flex-direction: column; gap: 2rem;">
+                    <div class="text-center p-8">
+                        <div class="skeleton w-full h-32 mb-4"></div>
+                        <div class="skeleton w-full h-32 mb-4"></div>
+                        <div class="skeleton w-full h-32"></div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Step Modal (Reused) -->
+    <div id="stepModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="stepModalTitle" class="text-xl mb-4 font-bold">Add Step</h2>
+            <form id="stepForm" onsubmit="handleStepSubmit(event)">
+                <input type="hidden" name="stepId" id="stepId" />
+                <input type="hidden" name="workflowId" id="workflowId" /> <!-- Added workflowId hidden field -->
+
+                <div class="form-group">
+                    <label class="form-label">Step Name</label>
+                    <input type="text" name="stepName" class="form-control" required
+                        placeholder="e.g. Manager Approval">
+                </div>
+
+                <div class="grid grid-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Order</label>
+                        <input type="number" name="stepOrder" class="form-control" required value="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Required Role</label>
+                        <select name="requiredRole" class="form-control">
+                            <option value="USER">USER</option>
+                            <option value="ADMIN">ADMIN</option>
+                            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group flex items-center gap-2">
+                    <input type="checkbox" name="autoApprove" id="autoApprove">
+                    <label for="autoApprove" class="m-0 cursor-pointer">Auto Approve (Skip validation)</label>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeStepModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="btnSaveStep" class="btn btn-primary">Save Step</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        /* Scoped Styles for Step List */
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            /* Removing gap, using border for separation */
+        }
+
+        .step-row {
+            display: grid;
+            grid-template-columns: 50px 1fr auto;
+            /* Number | Content | Actions */
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+
+        .step-row:first-child {
+            border-top-left-radius: var(--radius-md);
+            border-top-right-radius: var(--radius-md);
+        }
+
+        .step-row:last-child {
+            border-bottom: none;
+            border-bottom-left-radius: var(--radius-md);
+            border-bottom-right-radius: var(--radius-md);
+        }
+
+        .step-row:hover {
+            background: var(--surface-hover);
+        }
+
+        .step-num-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .step-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .step-title {
+            font-weight: 600;
+            color: white;
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .step-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .step-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .step-row {
+                grid-template-columns: 1fr;
+                gap: 0.75rem;
+                text-align: center;
+            }
+
+            .step-num-badge {
+                margin: 0 auto;
+            }
+
+            .step-actions {
+                justify-content: center;
+                width: 100%;
+            }
+        }
+    </style>
+
+    <script>
+        // Global cache: { workflowId: [steps...] }
+        let workflowsData = [];
+        let stepsCache = {};
+
+        document.addEventListener('DOMContentLoaded', loadAllData);
+
+        async function loadAllData() {
+            const container = document.getElementById('masterContainer');
+            try {
+                // 1. Get Workflows
+                workflowsData = await apiCall('/workflows');
+                if (!workflowsData || workflowsData.length === 0) {
+                    container.innerHTML = '<div class="text-center text-muted p-8">No workflows found. Create one first.</div>';
+                    return;
+                }
+
+                // 2. Build Skeleton for each workflow
+                container.innerHTML = workflowsData.map(wf => `
+                    <div class="card p-0 overflow-hidden mb-6 border border-gray-700">
+                        <div class="flex justify-between items-center p-4 bg-surface border-b border-gray-700">
+                            <h2 class="text-lg font-bold text-white m-0">${wf.name}</h2>
+                            <button onclick="openStepModal(null, ${wf.id})" class="btn btn-sm btn-primary">
+                                + Add Step
+                            </button>
+                        </div>
+                        <div id="steps-container-${wf.id}" class="step-list p-0">
+                            <div class="p-4"><div class="skeleton w-full h-12"></div></div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // 3. Fetch steps parallely
+                await Promise.all(workflowsData.map(async (wf) => {
+                    await loadStepsForWorkflow(wf.id);
+                }));
+
+            } catch (e) {
+                container.innerHTML = `<div class="alert alert-error">Failed to load data: ${e.message}</div>`;
+            }
+        }
+
+        async function loadStepsForWorkflow(workflowId) {
+            const container = document.getElementById(`steps-container-${workflowId}`);
+            if (!container) return;
+
+            try {
+                const steps = await apiCall(`/workflows/${workflowId}/steps`);
+                stepsCache[workflowId] = steps || [];
+                renderStepsList(workflowId);
+            } catch (e) {
+                container.innerHTML = `<div class="p-4 text-error text-sm">Failed to load steps</div>`;
+            }
+        }
+
+        function renderStepsList(workflowId) {
+            const container = document.getElementById(`steps-container-${workflowId}`);
+            const steps = stepsCache[workflowId];
+
+            if (!steps || steps.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-muted text-sm">No steps defined. Click "Add Step" to begin.</div>';
+                return;
+            }
+
+            // Sort
+            steps.sort((a, b) => a.stepOrder - b.stepOrder);
+
+            let html = '';
+            steps.forEach((step, index) => {
+                const isFirst = index === 0;
+                const isLast = index === steps.length - 1;
+
+                html += `
+                    <div class="step-row">
+                         <!-- Number -->
+                         <div class="step-num-badge">
+                             ${step.stepOrder}
+                         </div>
+                         
+                         <!-- Info -->
+                         <div class="step-meta">
+                             <h4 class="step-title">${step.stepName}</h4>
+                             <div class="step-subtitle">
+                                 <span class="badge ${getRoleBadgeClass(step.requiredRole)}" style="font-size:0.7rem;">${step.requiredRole}</span>
+                                 ${step.autoApprove ? '<span class="badge badge-success" style="font-size:0.7rem;">Auto-Approve</span>' : ''}
+                             </div>
+                         </div>
+                         
+                         <!-- Actions -->
+                         <div class="step-actions">
+                             <button onclick="moveStep(${workflowId}, ${step.id}, -1)" class="btn btn-sm btn-outline px-2" title="Move Up" ${isFirst ? 'disabled style="opacity:0.3"' : ''}>
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                             </button>
+                             <button onclick="moveStep(${workflowId}, ${step.id}, 1)" class="btn btn-sm btn-outline px-2" title="Move Down" ${isLast ? 'disabled style="opacity:0.3"' : ''}>
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                             </button>
+                             
+                             <div style="width: 1px; height: 20px; background: var(--border); margin: 0 4px;"></div>
+
+                             <button onclick="editStep(${workflowId}, ${step.id})" class="btn btn-sm btn-outline text-white hover:bg-surface-hover" title="Edit">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                             </button>
+                             <button onclick="deleteStep(${workflowId}, ${step.id})" class="btn btn-sm btn-danger px-2" title="Delete">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                             </button>
+                         </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function getRoleBadgeClass(role) {
+            if (role === 'SUPER_ADMIN') return 'badge-error';
+            if (role === 'ADMIN') return 'badge-warning';
+            return 'badge-blue';
+        }
+
+        // Modified to accept workflowId context
+        function openStepModal(stepId = null, workflowId = null) {
+            const modal = document.getElementById('stepModal');
+            const form = document.getElementById('stepForm');
+            const title = document.getElementById('stepModalTitle');
+            const btn = document.getElementById('btnSaveStep');
+
+            modal.classList.add('open');
+            form.reset();
+
+            if (stepId && workflowId) {
+                // Edit Mode
+                const step = stepsCache[workflowId].find(s => s.id === stepId);
+                if (step) {
+                    title.textContent = 'Edit Step';
+                    btn.textContent = 'Update Step';
+                    document.getElementById('stepId').value = step.id;
+                    document.getElementById('workflowId').value = workflowId; // Set context
+                    form.elements['stepName'].value = step.stepName;
+                    form.elements['stepOrder'].value = step.stepOrder;
+                    form.elements['requiredRole'].value = step.requiredRole;
+                    form.elements['autoApprove'].checked = step.autoApprove;
+                }
+            } else {
+                // Add Mode
+                // We must have workflowId for adding
+                if (!workflowId) {
+                    console.error("No workflow ID provided for Add Step");
+                    return;
+                }
+
+                title.textContent = 'Add Step';
+                btn.textContent = 'Add Step';
+                document.getElementById('stepId').value = '';
+                document.getElementById('workflowId').value = workflowId;
+
+                // Suggested Order
+                const currentSteps = stepsCache[workflowId] || [];
+                const nextOrder = currentSteps.length > 0 ? (Math.max(...currentSteps.map(s => s.stepOrder)) + 1) : 1;
+                form.elements['stepOrder'].value = nextOrder;
+            }
+        }
+
+        function editStep(workflowId, stepId) { openStepModal(stepId, workflowId); }
+        function closeStepModal() { document.getElementById('stepModal').classList.remove('open'); }
+
+        async function handleStepSubmit(e) {
+            e.preventDefault();
+            setLoading('btnSaveStep', true);
+
+            const formData = new FormData(e.target);
+            const stepId = formData.get('stepId');
+            const workflowId = formData.get('workflowId');
+
+            const payload = {
+                stepName: formData.get('stepName'),
+                stepOrder: parseInt(formData.get('stepOrder')),
+                requiredRole: formData.get('requiredRole'),
+                autoApprove: formData.get('autoApprove') === 'on'
+            };
+
+            try {
+                if (stepId) {
+                    await apiCall(`/workflow-steps/${stepId}`, 'PUT', payload);
+                    showMessage('msg', 'Step updated', 'success');
+                } else {
+                    await apiCall(`/workflows/${workflowId}/steps`, 'POST', payload);
+                    showMessage('msg', 'Step added', 'success');
+                }
+                closeStepModal();
+                loadStepsForWorkflow(workflowId); // Refresh specific workflow
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                setLoading('btnSaveStep', false);
+            }
+        }
+
+        async function deleteStep(workflowId, id) {
+            if (!confirm('Delete this step?')) return;
+            try {
+                await apiCall(`/workflow-steps/${id}`, 'DELETE');
+                loadStepsForWorkflow(workflowId); // Refresh only one list
+                showMessage('msg', 'Step deleted', 'success');
+            } catch (e) { alert(e.message); }
+        }
+
+        async function moveStep(workflowId, stepId, direction) {
+            const steps = stepsCache[workflowId];
+            if (!steps) return;
+
+            const index = steps.findIndex(s => s.id === stepId);
+            if (index === -1) return;
+
+            const currentStep = steps[index];
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= steps.length) return;
+            const targetStep = steps[targetIndex];
+
+            const tempOrder = currentStep.stepOrder;
+            const newOrder = targetStep.stepOrder;
+
+            try {
+                await apiCall(`/workflow-steps/${currentStep.id}`, 'PUT', { ...currentStep, stepOrder: newOrder });
+                await apiCall(`/workflow-steps/${targetStep.id}`, 'PUT', { ...targetStep, stepOrder: tempOrder });
+                loadStepsForWorkflow(workflowId);
+                showMessage('msg', 'Order updated', 'success');
+            } catch (e) {
+                alert('Move failed: ' + e.message);
+                loadStepsForWorkflow(workflowId);
+            }
+        }
+
+    </script>
+</body>
+
+</html>

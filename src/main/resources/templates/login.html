@@ -1,41 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
+
 <head>
     <meta charset="UTF-8">
     <title>Login - Workflow System</title>
     <link rel="stylesheet" href="/css/style.css">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: radial-gradient(circle at top right, #1e1b4b, #0B0E14);
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-neon);
+        }
+    </style>
 </head>
-<body class="items-center justify-center">
-    <div class="container">
-        <div class="card">
-            <div class="text-center mb-6">
-                <h1 class="brand" style="font-size: 2rem; margin-bottom: 0.5rem;">Workflow Sys</h1>
-                <p class="subtitle" style="margin-bottom: 0;">Sign in to your account</p>
+
+<body>
+    <div class="login-card">
+        <div class="text-center mb-8">
+            <div class="flex items-center justify-center gap-2 mb-2 text-2xl font-bold font-heading text-white">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="var(--primary)">
+                    <path
+                        d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.75l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
+                </svg>
+                WorkflowSys
+            </div>
+            <p class="text-muted">Enter credentials to continue</p>
+        </div>
+
+        <div id="message" class="alert alert-error hidden mb-4"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label" for="email">Username or Email</label>
+                <input type="text" id="email" class="form-control" required autocomplete="username"
+                    placeholder="user@example.com">
             </div>
 
-            <div id="message" class="hidden"></div>
-
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="email">Email or Username</label>
-                    <input type="text" id="email" required autocomplete="username" placeholder="name@company.com">
+            <div class="form-group">
+                <div class="flex justify-between items-center mb-1">
+                    <label class="form-label" for="password">Password</label>
+                    <a href="/forgot-password" class="text-sm text-primary hover:text-white">Forgot password?</a>
                 </div>
-                <div class="form-group">
-                    <div class="flex justify-between items-center mb-2">
-                        <label for="password" style="margin-bottom:0">Password</label>
-                        <a href="/forgot-password" style="font-size: 0.8rem;">Forgot password?</a>
-                    </div>
-                    <input type="password" id="password" required autocomplete="current-password" placeholder="••••••••">
-                </div>
+                <input type="password" id="password" class="form-control" required autocomplete="current-password"
+                    placeholder="••••••••">
+            </div>
 
-                <button type="submit" id="submitBtn" class="btn mt-4">Sign In</button>
-            </form>
-        </div>
-        <p class="text-center mt-4 text-muted" style="font-size: 0.875rem;">
-            Don't have an account? Contact your administrator.
+            <button type="submit" id="submitBtn" class="btn btn-primary w-full mt-6">Sign In</button>
+        </form>
+
+        <p class="text-center mt-6 text-sm text-muted">
+            Internal System. access is monitored.
         </p>
     </div>
+
     <script src="/js/app.js"></script>
     <script>
         checkAlreadyLoggedIn();
@@ -43,21 +73,27 @@
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMessage('message');
-            setLoading('submitBtn', true, 'Signing in...');
+            setLoading('submitBtn', true, 'Authenticating...');
 
-            const usernameOrEmail = document.getElementById('email').value;
+            const usernameOrEmail = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
 
             try {
                 const data = await apiCall('/auth/login', 'POST', { usernameOrEmail, password });
+
+                // Store tokens
                 setToken(data.accessToken);
                 if (data.refreshToken) setRefreshToken(data.refreshToken);
+
+                // Redirect
                 window.location.href = '/dashboard';
             } catch (err) {
-                showMessage('message', err.message || 'Invalid credentials', 'error');
+                const msg = err.message || 'Authentication failed';
+                showMessage('message', msg, 'error');
                 setLoading('submitBtn', false);
             }
         });
     </script>
 </body>
+
 </html>
