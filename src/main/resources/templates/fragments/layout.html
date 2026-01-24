@@ -18,7 +18,7 @@
                 <path
                     d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.75l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z" />
             </svg>
-            WorkflowSys
+            <span id="brand-text">WorkflowSys</span>
         </div>
 
         <nav class="nav-links">
@@ -83,7 +83,7 @@
     <!-- Topbar Fragment -->
     <div th:fragment="topbar" class="topbar">
         <!-- Breadcrumb or Title placeholder -->
-        <h3 id="page-title-display" style="margin:0; font-size:1.1rem; color:white;">Workflow Project</h3>
+        <h3 id="page-title-display" style="margin:0; font-size:1.1rem; color:white;"></h3>
 
         <div class="topbar-right">
             <!-- Notifications (Dummy) -->
@@ -143,10 +143,12 @@
                 const usernameEl = document.getElementById('header-username');
                 const roleEl = document.getElementById('header-role');
                 const avatarEl = document.getElementById('header-avatar');
+                const brandEl = document.getElementById('brand-text');
 
                 if (usernameEl) usernameEl.textContent = ctx.username;
                 if (roleEl) roleEl.textContent = ctx.role;
                 if (avatarEl) avatarEl.textContent = ctx.username.charAt(0).toUpperCase();
+                if (brandEl && ctx.tenantName) brandEl.textContent = ctx.tenantName;
             }
 
             // Highlight Active Link
