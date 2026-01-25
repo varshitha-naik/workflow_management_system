@@ -133,7 +133,10 @@
             if (ctx) {
                 // Update Sidebar Visibility based on Role
                 if (hasRole('SUPER_ADMIN')) {
-                    document.getElementById('nav-tenants').style.display = 'flex';
+                    // Only Platform Owner (WorkflowSys) manages tenants
+                    if (ctx.tenantName === 'WorkflowSys') {
+                        document.getElementById('nav-tenants').style.display = 'flex';
+                    }
                     document.getElementById('nav-users').style.display = 'flex';
                 } else if (hasRole('ADMIN')) {
                     document.getElementById('nav-users').style.display = 'flex';

@@ -74,25 +74,40 @@
             // --- SUPER_ADMIN Logic ---
             if (hasRole('SUPER_ADMIN')) {
                 // Modules
-                modulesGrid.innerHTML += `
-                     <a href="/tenants" class="card block hover:border-primary">
-                         <h3 class="text-primary mb-1">Manage Tenants</h3>
-                         <p class="text-sm">Create and remove system tenants</p>
-                     </a>
+                let superAdminModules = '';
+
+                // Only Platform Owner manages tenants
+                if (ctx.tenantName === 'WorkflowSys') {
+                    superAdminModules += `
+                         <a href="/tenants" class="card block hover:border-primary">
+                             <h3 class="text-primary mb-1">Manage Tenants</h3>
+                             <p class="text-sm">Create and remove system tenants</p>
+                         </a>`;
+                }
+
+                superAdminModules += `
                      <a href="/users" class="card block hover:border-primary">
-                         <h3 class="text-primary mb-1">Global Users</h3>
-                         <p class="text-sm">Administer users across all tenants</p>
+                         <h3 class="text-primary mb-1">Users</h3>
+                         <p class="text-sm">Administer users for this tenant</p>
                      </a>
                  `;
 
+                modulesGrid.innerHTML += superAdminModules;
+
                 // Stats
                 try {
-                    const [tenants, users] = await Promise.all([
-                        apiCall('/tenants'),
-                        apiCall('/users')
-                    ]);
+                    const promises = [apiCall('/users')];
+                    // Only fetch tenants if platform owner
+                    const isPlatformOwner = ctx.tenantName === 'WorkflowSys';
+                    if (isPlatformOwner) {
+                        promises.push(apiCall('/tenants'));
+                    }
 
-                    if (tenants) {
+                    const results = await Promise.all(promises);
+                    const users = results[0];
+                    const tenants = isPlatformOwner ? results[1] : null;
+
+                    if (isPlatformOwner && tenants) {
                         statsGrid.innerHTML += `
                             <div class="card p-4">
                                 <div class="text-muted text-sm">Active Tenants</div>
@@ -100,11 +115,14 @@
                             </div>
                          `;
                     }
+
                     if (users) {
+                        // Filter count for non-platform owners just in case API returns all
+                        const count = isPlatformOwner ? users.length : users.filter(u => u.tenantId === ctx.tenantId).length;
                         statsGrid.innerHTML += `
                             <div class="card p-4">
                                 <div class="text-muted text-sm">Total Users</div>
-                                <div class="text-3xl font-bold mt-2 text-white">${users.length}</div>
+                                <div class="text-3xl font-bold mt-2 text-white">${count}</div>
                             </div>
                          `;
                     }

@@ -137,7 +137,22 @@
                 if (tenantId) url += `?tenantId=${tenantId}`;
 
                 const users = await apiCall(url);
-                window.usersData = users || [];
+
+                let displayUsers = users || [];
+                const ctx = getAuthContext();
+
+                // Role-based visibility filtering
+                if (hasRole('ADMIN')) {
+                    // Admins can strictly only see normal Users in their tenant
+                    displayUsers = displayUsers.filter(u => u.role === 'USER' && u.tenantId === ctx.tenantId);
+                } else if (hasRole('SUPER_ADMIN')) {
+                    // Super Admins: strict tenant isolation unless they are 'WorkflowSys' (Platform Owner)
+                    if (ctx.tenantName !== 'WorkflowSys') {
+                        displayUsers = displayUsers.filter(u => u.tenantId === ctx.tenantId);
+                    }
+                }
+
+                window.usersData = displayUsers;
 
                 loading.classList.add('hidden');
 
@@ -147,7 +162,7 @@
                     { label: 'Role', key: 'role', format: (v) => `<span class="badge ${v === 'USER' ? 'badge-blue' : 'badge-warning'}">${v}</span>` },
                     { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
                     { label: 'Tenant', key: 'tenantId' }
-                ], users, [
+                ], displayUsers, [
                     {
                         label: 'Edit',
                         class: 'btn-outline btn-sm', // styling
@@ -175,13 +190,14 @@
             document.getElementById('editUserId').value = user.id;
             document.getElementById('username').value = user.username;
             document.getElementById('email').value = user.email;
-            document.getElementById('role').value = user.role;
+
+            // Handle Role Select
+            const roleSelect = document.getElementById('role');
+            setupRoleOptions();
+            roleSelect.value = user.role;
+
             document.getElementById('active').checked = user.active;
-
             document.getElementById('activeGroup').classList.remove('hidden');
-
-            // Adjust role restriction if needed? (Admin editing user)
-
             document.getElementById('createModal').classList.add('open');
         };
 
@@ -191,15 +207,31 @@
             document.getElementById('editUserId').value = '';
             document.getElementById('activeGroup').classList.add('hidden');
 
-            if (hasRole('ADMIN')) {
-                document.getElementById('roleAdminOption').disabled = true;
-                document.getElementById('role').value = 'USER';
-            } else {
-                document.getElementById('roleAdminOption').disabled = false;
-            }
+            setupRoleOptions();
+            document.getElementById('role').value = 'USER'; // Default
 
             document.getElementById('modalError').classList.add('hidden');
             document.getElementById('createModal').classList.add('open');
+        }
+
+        function setupRoleOptions() {
+            const roleSelect = document.getElementById('role');
+            const isSuperAdmin = hasRole('SUPER_ADMIN');
+            const isAdmin = hasRole('ADMIN');
+
+            // Reset options
+            roleSelect.innerHTML = '<option value="USER">User</option>';
+
+            if (isAdmin) {
+                // Admins cannot create Admins, only Users. 
+                // However, if we are EDITING an existing Admin (which shouldn't happen for Admin user but purely defensive), handle gracefully.
+                // Actually Admin sees only USERs, so this is fine.
+            }
+
+            if (isSuperAdmin) {
+                roleSelect.innerHTML += '<option value="ADMIN">Admin</option>';
+                roleSelect.innerHTML += '<option value="SUPER_ADMIN">Super Admin</option>';
+            }
         }
 
         function closeCreateModal() {

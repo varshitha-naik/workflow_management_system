@@ -395,12 +395,26 @@
             if (targetIndex < 0 || targetIndex >= steps.length) return;
             const targetStep = steps[targetIndex];
 
-            const tempOrder = currentStep.stepOrder;
-            const newOrder = targetStep.stepOrder;
+            function createCleanPayload(step, newOrder) {
+                return {
+                    stepName: step.stepName,
+                    stepOrder: newOrder,
+                    requiredRole: step.requiredRole,
+                    autoApprove: step.autoApprove
+                };
+            }
 
             try {
-                await apiCall(`/workflow-steps/${currentStep.id}`, 'PUT', { ...currentStep, stepOrder: newOrder });
-                await apiCall(`/workflow-steps/${targetStep.id}`, 'PUT', { ...targetStep, stepOrder: tempOrder });
+                // Determine new orders
+                const tempOrder = currentStep.stepOrder;
+                const newOrder = targetStep.stepOrder; // Usually just +1 or -1 swapping
+
+                // We swap orders. 
+                // But wait, if we just swap numbers, it works.
+                // However, we must ensure we send clean Payloads.
+
+                await apiCall(`/workflow-steps/${currentStep.id}`, 'PUT', createCleanPayload(currentStep, newOrder));
+                await apiCall(`/workflow-steps/${targetStep.id}`, 'PUT', createCleanPayload(targetStep, tempOrder));
                 loadStepsForWorkflow(workflowId);
                 showMessage('msg', 'Order updated', 'success');
             } catch (e) {
