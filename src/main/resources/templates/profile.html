@@ -34,27 +34,47 @@
                                 <input type="text" id="username" class="form-control" required>
                             </div>
 
-                            <div class="mt-8 mb-6 border-t border-gray-700 pt-6">
-                                <h3 class="text-lg font-bold mb-4">Security</h3>
+                            <!-- Save Profile Button -->
+                            <!-- Save Profile Button (Hidden by Default) -->
+                            <div class="flex justify-end pt-4" id="saveProfileContainer">
+                                <button type="submit" id="submitProfileBtn" class="btn btn-primary hidden">Save
+                                    Profile</button>
+                            </div>
+                        </form>
 
+                        <div class="mt-8 mb-6 border-t border-gray-700 pt-6">
+                            <h3 class="text-lg font-bold mb-4">Security</h3>
+
+                            <!-- Reset Password Button (Default State) -->
+                            <div id="passwordResetInit">
+                                <button type="button" class="btn btn-outline" onclick="showPasswordFields()">Reset
+                                    Password</button>
+                            </div>
+
+                            <!-- Password Fields (Hidden State) -->
+                            <div id="passwordFields" class="hidden">
                                 <div class="grid grid-2 gap-4">
                                     <div class="form-group">
                                         <label class="form-label">New Password</label>
                                         <input type="password" id="password" class="form-control"
-                                            placeholder="Leave blank to keep current">
+                                            placeholder="Enter new password">
                                     </div>
 
                                     <div class="form-group">
                                         <label class="form-label">Confirm Password</label>
-                                        <input type="password" id="confirmPassword" class="form-control">
+                                        <input type="password" id="confirmPassword" class="form-control"
+                                            placeholder="Confirm new password">
                                     </div>
                                 </div>
-                            </div>
 
-                            <div class="flex justify-end pt-4">
-                                <button type="submit" id="submitBtn" class="btn btn-primary">Save Changes</button>
+                                <div class="flex gap-4 mt-4">
+                                    <button type="button" id="savePasswordBtn" class="btn btn-primary"
+                                        onclick="handleSavePassword()">Save Password</button>
+                                    <button type="button" class="btn btn-outline"
+                                        onclick="cancelPasswordReset()">Cancel</button>
+                                </div>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -65,52 +85,113 @@
     <div th:replace="~{fragments/layout :: scripts}"></div>
 
     <script>
+        let originalUsername = '';
+
         document.addEventListener('DOMContentLoaded', () => {
             const ctx = requireAuth();
             if (ctx) loadProfile();
-            document.getElementById('profileForm').addEventListener('submit', handleSave);
+            document.getElementById('profileForm').addEventListener('submit', handleSaveProfile);
+            document.getElementById('username').addEventListener('input', checkProfileChanges);
         });
 
         async function loadProfile() {
             try {
                 const user = await apiCall('/users/me');
+                originalUsername = user.username;
                 document.getElementById('email').value = user.email;
                 document.getElementById('username').value = user.username;
+                checkProfileChanges(); // Ensure button state is correct on load
             } catch (err) {
                 console.error(err);
                 showMessage('message', 'Failed to load profile.');
             }
         }
 
-        async function handleSave(e) {
+        function checkProfileChanges() {
+            const currentUsername = document.getElementById('username').value;
+            const btn = document.getElementById('submitProfileBtn');
+            const container = document.getElementById('saveProfileContainer');
+
+            if (currentUsername !== originalUsername) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        async function handleSaveProfile(e) {
             e.preventDefault();
             const msgEl = document.getElementById('message');
             msgEl.classList.add('hidden');
 
-            setLoading('submitBtn', true);
+            setLoading('submitProfileBtn', true);
 
             const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-
-            if (password && password !== confirmPassword) {
-                showMessage('message', 'Passwords do not match.', 'error');
-                setLoading('submitBtn', false, 'Save Changes');
-                return;
-            }
-
-            const body = { username };
-            if (password) body.password = password;
+            const body = { username }; // Password is undefined/omitted
 
             try {
                 await apiCall('/users/me', 'PUT', body);
+                originalUsername = username; // Update original value after successful save
+                checkProfileChanges(); // Re-evaluate button visibility
                 showMessage('message', 'Profile updated successfully.', 'success');
-                document.getElementById('password').value = '';
-                document.getElementById('confirmPassword').value = '';
             } catch (err) {
                 showMessage('message', err.message || 'Failed to update profile.', 'error');
             } finally {
-                setLoading('submitBtn', false, 'Save Changes');
+                setLoading('submitProfileBtn', false, 'Save Profile');
+            }
+        }
+
+        function showPasswordFields() {
+            document.getElementById('passwordResetInit').classList.add('hidden');
+            document.getElementById('passwordFields').classList.remove('hidden');
+        }
+
+        function cancelPasswordReset() {
+            document.getElementById('password').value = '';
+            document.getElementById('confirmPassword').value = '';
+            document.getElementById('passwordFields').classList.add('hidden');
+            document.getElementById('passwordResetInit').classList.remove('hidden');
+            document.getElementById('message').classList.add('hidden');
+        }
+
+        async function handleSavePassword() {
+            const msgEl = document.getElementById('message');
+            msgEl.classList.add('hidden');
+
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Basic Validation
+            if (!password || password.length < 6) {
+                showMessage('message', 'Password must be at least 6 characters.', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('message', 'Passwords do not match.', 'error');
+                return;
+            }
+
+            setLoading('savePasswordBtn', true);
+
+            // We must send the username as well, as it is required by the DTO.
+            // We use the current value in the input to support simultaneous updates if intended,
+            // or effectively "saving" the current state of username.
+            const username = document.getElementById('username').value;
+
+            const body = {
+                username: username,
+                password: password
+            };
+
+            try {
+                await apiCall('/users/me', 'PUT', body);
+                showMessage('message', 'Password updated successfully.', 'success');
+                cancelPasswordReset(); // Reset UI state on success
+            } catch (err) {
+                showMessage('message', err.message || 'Failed to update password.', 'error');
+            } finally {
+                setLoading('savePasswordBtn', false, 'Save Password');
             }
         }
     </script>

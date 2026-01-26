@@ -11,4 +11,7 @@ public interface WorkflowStepRepository extends JpaRepository<WorkflowStep, Long
     List<WorkflowStep> findByWorkflowIdOrderByStepOrderAsc(Long workflowId);
 
     boolean existsByWorkflowIdAndStepOrder(Long workflowId, int stepOrder);
+
+    java.util.Optional<WorkflowStep> findFirstByWorkflowIdAndStepOrderGreaterThanOrderByStepOrderAsc(Long workflowId,
+            int stepOrder);
 }

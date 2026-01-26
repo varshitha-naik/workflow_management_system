@@ -29,17 +29,20 @@ public class RequestService {
     private final WorkflowStepRepository workflowStepRepository;
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final RequestAssignmentService requestAssignmentService;
 
     public RequestService(RequestRepository requestRepository,
             WorkflowRepository workflowRepository,
             WorkflowStepRepository workflowStepRepository,
             UserRepository userRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            RequestAssignmentService requestAssignmentService) {
         this.requestRepository = requestRepository;
         this.workflowRepository = workflowRepository;
         this.workflowStepRepository = workflowStepRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
+        this.requestAssignmentService = requestAssignmentService;
     }
 
     public RequestResponse createRequest(RequestCreateRequest createRequest) {
@@ -82,6 +85,7 @@ public class RequestService {
         request.setPayload(payloadJson);
 
         Request savedRequest = requestRepository.save(request);
+        requestAssignmentService.createAssignmentsForStep(savedRequest, firstStep);
 
         return mapToResponse(savedRequest);
     }
