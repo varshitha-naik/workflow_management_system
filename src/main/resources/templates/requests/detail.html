@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+    <style>
+        /* Stepper CSS */
+        .stepper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .stepper::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--bg-dark);
+            z-index: 0;
+        }
+
+        .step-item {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            background: var(--bg-card);
+            padding: 0 10px;
+        }
+
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 5px;
+            font-weight: bold;
+            border: 2px solid var(--border-color);
+        }
+
+        .step-item.active .step-circle {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .step-item.completed .step-circle {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .step-title {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .step-item.active .step-title {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        /* Timeline CSS */
+        .timeline-item {
+            border-left: 2px solid var(--border-color);
+            padding-left: 20px;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .timeline-item:last-child {
+            border-left: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h1 id="reqTitle">Request #...</h1>
+                            <span id="reqStatus" class="badge">Loading...</span>
+                        </div>
+                        <p id="reqMeta" class="text-muted mt-1">Submitted by ... on ...</p>
+                    </div>
+                </div>
+
+                <!-- Stepper -->
+                <div class="card p-6 mb-6 overflow-x-auto">
+                    <div id="stepperContainer" class="stepper min-w-[500px]"></div>
+                </div>
+
+                <div class="grid grid-2 gap-6">
+                    <!-- Left: Payload & Details -->
+                    <div class="space-y-6">
+                        <div class="card p-6">
+                            <h3 class="font-bold mb-4 border-b border-gray-700 pb-2">Request Data</h3>
+                            <div id="payloadContainer" class="space-y-3">
+                                <p class="text-muted italic">No data provided.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Actions & History -->
+                    <div class="space-y-6">
+                        <!-- Action Card (Conditional) -->
+                        <div id="actionCard" class="card p-6 border border-primary hidden"
+                            style="border: 1px solid var(--primary);">
+                            <h3 class="font-bold mb-2 text-primary">Action Required</h3>
+                            <p class="text-sm text-muted mb-4">You are required to review this request at the current
+                                step.</p>
+                            <div class="flex gap-2">
+                                <button onclick="openActionModal('APPROVE')"
+                                    class="btn btn-primary flex-1">Approve</button>
+                                <button onclick="openActionModal('REJECT')"
+                                    class="btn btn-outline flex-1 text-error border-error">Reject</button>
+                            </div>
+                        </div>
+
+                        <!-- History -->
+                        <div class="card p-6">
+                            <h3 class="font-bold mb-4">Activity History</h3>
+                            <div id="historyContainer" class="pl-2">Loading history...</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Action Modal -->
+    <div id="actionModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Approve Request</h2>
+            <div id="modalError" class="alert alert-error hidden mb-4"></div>
+
+            <form id="actionForm">
+                <input type="hidden" id="actionType">
+                <textarea id="comments" class="form-control mb-4" rows="3" placeholder="Add comments..."></textarea>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeActionModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="confirmBtn" class="btn btn-primary">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script th:inline="javascript">
+        // Inject Request ID from Controller Model if available, or extract from URL?
+        // Thymeleaf controller passed 'requestId'.
+        const requestId = /*[[${requestId}]]*/ null;
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', init);
+
+        let currentRequest = null;
+        let requestSteps = [];
+
+        async function init() {
+            const ctx = requireAuth();
+            if (!ctx) return;
+            if (!requestId) {
+                alert("No Request ID provided");
+                return;
+            }
+
+            Promise.all([loadRequest(), loadHistory()]).then(() => {
+                checkPermissions();
+            });
+        }
+
+        async function loadRequest() {
+            try {
+                currentRequest = await apiCall(`/api/requests/${requestId}`);
+
+                // Update Header
+                document.getElementById('reqTitle').textContent = `Request #${currentRequest.id}: ${currentRequest.workflowName}`;
+                const statusBadge = document.getElementById('reqStatus');
+                statusBadge.textContent = currentRequest.status;
+                if (currentRequest.status === 'IN_PROGRESS') statusBadge.className = 'badge badge-warning';
+                else if (currentRequest.status === 'APPROVED' || currentRequest.status === 'COMPLETED') statusBadge.className = 'badge badge-success';
+                else statusBadge.className = 'badge badge-error';
+
+                document.getElementById('reqMeta').textContent = `Submitted by ${currentRequest.createdByUsername} on ${new Date(currentRequest.createdAt).toLocaleString()}`;
+
+                // Render Payload
+                const payloadDiv = document.getElementById('payloadContainer');
+                if (currentRequest.payload && Object.keys(currentRequest.payload).length > 0) {
+                    payloadDiv.innerHTML = '';
+                    for (const [key, val] of Object.entries(currentRequest.payload)) {
+                        payloadDiv.innerHTML += `
+                            <div class="flex flex-col border-b border-gray-800 pb-2 last:border-0">
+                                <span class="text-xs text-muted uppercase font-bold tracking-wider mb-1">${key}</span>
+                                <span class="text-white">${val}</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                // Load Steps for Stepper
+                const steps = await apiCall(`/api/workflows/${currentRequest.workflowId}/steps`);
+                requestSteps = steps;
+                renderStepper(steps, currentRequest.currentStepId, currentRequest.status);
+
+            } catch (err) {
+                console.error(err);
+                document.querySelector('main').innerHTML = `<div class="p-8 text-center text-error">Failed to load request. ${err.message}</div>`;
+            }
+        }
+
+        async function loadHistory() {
+            try {
+                const history = await apiCall(`/api/requests/${requestId}/history`);
+                const container = document.getElementById('historyContainer');
+
+                if (!history || history.length === 0) {
+                    container.innerHTML = '<p class="text-muted">No activity yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = history.map(h => `
+                    <div class="timeline-item">
+                        <div class="flex justify-between mb-1">
+                            <span class="font-bold text-sm">${h.actionByUsername}</span>
+                            <span class="text-xs text-muted">${new Date(h.actionTime).toLocaleString()}</span>
+                        </div>
+                        <div class="mb-1">
+                            <span class="badge ${getActionBadgeClass(h.actionType)} text-xs p-1">${h.actionType}</span>
+                        </div>
+                        <p class="text-sm text-gray-300">
+                             ${h.comments || 'No comments'}
+                        </p>
+                        <div class="text-xs text-muted mt-1">
+                            ${h.fromStepName} &rarr; ${h.toStepName || 'End'}
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                console.error("History load error", err);
+            }
+        }
+
+        function getActionBadgeClass(type) {
+            if (type === 'APPROVE') return 'badge-success';
+            if (type === 'REJECT') return 'badge-error';
+            return 'badge-info';
+        }
+
+        function renderStepper(steps, currentStepId, status) {
+            const container = document.getElementById('stepperContainer');
+            // Sort steps by order
+            steps.sort((a, b) => a.stepOrder - b.stepOrder);
+
+            // Determine active index
+            let activeIndex = steps.findIndex(s => s.id === currentStepId);
+            if (status === 'COMPLETED') activeIndex = steps.length; // All done
+            if (status === 'REJECTED') activeIndex = activeIndex; // Stop at current
+
+            container.innerHTML = steps.map((s, idx) => {
+                let cls = 'step-item';
+                if (idx < activeIndex) cls += ' completed';
+                else if (idx === activeIndex && status !== 'REJECTED') cls += ' active';
+                else if (idx === activeIndex && status === 'REJECTED') cls += ' error'; // Add error styling if needed
+
+                return `
+                    <div class="${cls}" style="flex:1">
+                        <div class="step-circle">${idx + 1}</div>
+                        <div class="step-title">${s.stepName}</div>
+                        <div class="text-xs text-muted">${s.requiredRole}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function checkPermissions() {
+            if (!currentRequest) return;
+            const ctx = getAuthContext(); // { role, username }
+
+            // Show Action Card if:
+            // 1. Status is IN_PROGRESS
+            // 2. Current Step Required Role == My Role
+            // 3. (Optional) Not already acted? (Backend handles logic, here just UI hint)
+
+            // Find current step object
+            const step = requestSteps.find(s => s.id === currentRequest.currentStepId);
+            if (step && currentRequest.status === 'IN_PROGRESS' && step.requiredRole === ctx.role) {
+                document.getElementById('actionCard').classList.remove('hidden');
+            }
+        }
+
+        // Action Modal Logic
+        function openActionModal(type) {
+            document.getElementById('actionType').value = type;
+            document.getElementById('modalTitle').textContent = type + ' Request';
+            document.getElementById('actionModal').classList.add('open');
+        }
+
+        function closeActionModal() {
+            document.getElementById('actionModal').classList.remove('open');
+        }
+
+        document.getElementById('actionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const type = document.getElementById('actionType').value;
+            const comments = document.getElementById('comments').value;
+            const endpoint = type === 'APPROVE' ? 'approve' : 'reject';
+
+            setLoading('confirmBtn', true);
+            try {
+                await apiCall(`/api/requests/${requestId}/${endpoint}`, 'POST', { comments });
+                window.location.reload();
+            } catch (err) {
+                document.getElementById('modalError').textContent = err.message;
+                document.getElementById('modalError').classList.remove('hidden');
+                setLoading('confirmBtn', false);
+            }
+        });
+    </script>
+</body>
+
+</html>

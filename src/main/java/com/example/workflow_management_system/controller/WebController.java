@@ -70,4 +70,37 @@ public class WebController {
     public String workflowSteps() {
         return "workflow-steps";
     }
+
+    // --- Request Management UI ---
+
+    @GetMapping("/requests")
+    public String requests() {
+        return "requests/list";
+    }
+
+    @GetMapping("/my-requests")
+    public String myRequests() {
+        return "requests/my-requests";
+    }
+
+    @GetMapping("/requests/new")
+    public String newRequest() {
+        return "requests/create";
+    }
+
+    @GetMapping("/requests/{id}")
+    public String requestDetail(@org.springframework.web.bind.annotation.PathVariable Long id, Model model) {
+        model.addAttribute("requestId", id);
+        return "requests/detail";
+    }
+
+    @GetMapping("/approvals/pending")
+    public String pendingApprovals() {
+        return "requests/approvals";
+    }
+
+    @GetMapping("/assignments")
+    public String assignments() {
+        return "requests/assignments";
+    }
 }

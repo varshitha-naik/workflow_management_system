@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>Pending Approvals</h1>
+                        <p class="text-muted">Requests waiting for your action</p>
+                    </div>
+                </div>
+
+                <!-- Table Area -->
+                <div class="card p-0 overflow-hidden">
+                    <div id="loading" class="p-8 text-center text-muted">Checking for pending items...</div>
+                    <div id="approvalsTableContainer"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Action Modal -->
+    <div id="actionModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle" class="text-xl font-bold mb-4">Approve Request</h2>
+            <div id="modalError" class="alert alert-error hidden mb-4"></div>
+
+            <form id="actionForm">
+                <input type="hidden" id="requestId">
+                <input type="hidden" id="actionType"> <!-- APPROVE or REJECT -->
+
+                <div class="form-group mb-4">
+                    <label class="form-label">Comments (Optional)</label>
+                    <textarea id="comments" class="form-control" rows="3" placeholder="Add a note..."></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 mt-6">
+                    <button type="button" onclick="closeActionModal()" class="btn btn-outline">Cancel</button>
+                    <button type="submit" id="confirmBtn" class="btn btn-primary">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            const ctx = requireAuth(['ADMIN']); // Usually only Admins/Managers approve
+            if (!ctx) return;
+
+            loadApprovals();
+            document.getElementById('actionForm').addEventListener('submit', handleActionSubmit);
+        }
+
+        async function loadApprovals() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('approvalsTableContainer');
+
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+
+            try {
+                const requests = await apiCall('/api/requests/approvals');
+                loading.classList.add('hidden');
+
+                if (!requests || requests.length === 0) {
+                    container.innerHTML = '<div class="p-8 text-center text-muted">You have no pending approvals. Good job!</div>';
+                    return;
+                }
+
+                renderTable('approvalsTableContainer', [
+                    { label: 'ID', key: 'id', format: (v) => `#${v}` },
+                    { label: 'Workflow', key: 'workflowName', format: v => `<span class="font-bold text-white">${v}</span>` },
+                    { label: 'Created By', key: 'createdByUsername' },
+                    { label: 'Step', key: 'currentStepName' },
+                    { label: 'Date', key: 'createdAt', format: formatDate }
+                ], requests, [
+                    {
+                        label: 'View',
+                        class: 'btn-outline btn-sm',
+                        handler: (id) => window.location.href = `/requests/${id}`
+                    },
+                    {
+                        label: 'Approve',
+                        class: 'btn-primary btn-sm', // Green
+                        handler: (id) => openActionModal(id, 'APPROVE')
+                    },
+                    {
+                        label: 'Reject',
+                        class: 'btn-outline btn-sm', // Red border needed in CSS, or customize
+                        style: 'color: var(--error); border-color: var(--error);',
+                        handler: (id) => openActionModal(id, 'REJECT')
+                    }
+                ]);
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                container.innerHTML = `<div class="p-4 text-center text-error">${err.message}</div>`;
+            }
+        }
+
+        function openActionModal(id, type) {
+            document.getElementById('requestId').value = id;
+            document.getElementById('actionType').value = type;
+            document.getElementById('modalTitle').textContent = type === 'APPROVE' ? 'Approve Request #' + id : 'Reject Request #' + id;
+            document.getElementById('comments').value = '';
+            document.getElementById('modalError').classList.add('hidden');
+
+            const btn = document.getElementById('confirmBtn');
+            btn.textContent = type === 'APPROVE' ? 'Approve' : 'Reject';
+            btn.className = type === 'APPROVE' ? 'btn btn-primary' : 'btn btn-outline';
+            if (type === 'REJECT') btn.style = 'background-color: var(--error); color: white; border: none;';
+            else btn.style = '';
+
+            document.getElementById('actionModal').classList.add('open');
+        }
+
+        function closeActionModal() {
+            document.getElementById('actionModal').classList.remove('open');
+        }
+
+        async function handleActionSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('requestId').value;
+            const type = document.getElementById('actionType').value;
+            const comments = document.getElementById('comments').value;
+            const btn = document.getElementById('confirmBtn');
+
+            setLoading('confirmBtn', true);
+
+            try {
+                // Endpoint: /requests/{id}/approve or /reject
+                const endpoint = type === 'APPROVE' ? 'approve' : 'reject';
+                await apiCall(`/api/requests/${id}/${endpoint}`, 'POST', { comments });
+
+                closeActionModal();
+                loadApprovals(); // Refresh table
+            } catch (err) {
+                document.getElementById('modalError').textContent = err.message;
+                document.getElementById('modalError').classList.remove('hidden');
+            } finally {
+                setLoading('confirmBtn', false, type === 'APPROVE' ? 'Approve' : 'Reject');
+            }
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleDateString();
+        }
+    </script>
+</body>
+
+</html>

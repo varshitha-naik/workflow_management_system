@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1>My Requests</h1>
+                        <p class="text-muted">Requests you have initiated</p>
+                    </div>
+                    <a href="/requests/new" class="btn btn-primary">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                        </svg>
+                        New Request
+                    </a>
+                </div>
+
+                <!-- Table Area -->
+                <div class="card p-0 overflow-hidden">
+                    <div id="loading" class="p-8 text-center text-muted">Loading your requests...</div>
+                    <div id="requestsTableContainer"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            const ctx = requireAuth(); // All roles allowed
+            if (!ctx) return;
+
+            loadRequests();
+        }
+
+        async function loadRequests() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('requestsTableContainer');
+
+            loading.classList.remove('hidden');
+            container.innerHTML = '';
+
+            try {
+                const requests = await apiCall('/api/requests/my');
+                loading.classList.add('hidden');
+
+                if (!requests || requests.length === 0) {
+                    container.innerHTML = '<div class="p-8 text-center text-muted">You have no requests. Click "New Request" to start one.</div>';
+                    return;
+                }
+
+                renderTable('requestsTableContainer', [
+                    { label: 'ID', key: 'id', format: (v) => `#${v}` },
+                    { label: 'Workflow', key: 'workflowName', format: v => `<span class="font-bold text-white">${v}</span>` },
+                    { label: 'Current Step', key: 'currentStepName' },
+                    { label: 'Status', key: 'status', format: renderStatusBadge },
+                    { label: 'Date', key: 'createdAt', format: formatDate }
+                ], requests, [
+                    {
+                        label: 'View Details',
+                        class: 'btn-outline btn-sm',
+                        handler: (id) => window.location.href = `/requests/${id}`
+                    }
+                ]);
+
+            } catch (err) {
+                loading.classList.add('hidden');
+                container.innerHTML = `<div class="p-4 text-center text-error">${err.message}</div>`;
+            }
+        }
+
+        function renderStatusBadge(status) {
+            let cls = 'badge-secondary';
+            if (status === 'IN_PROGRESS') cls = 'badge-warning';
+            if (status === 'APPROVED') cls = 'badge-success';
+            if (status === 'REJECTED') cls = 'badge-error';
+            if (status === 'COMPLETED') cls = 'badge-success';
+            return `<span class="badge ${cls}">${status}</span>`;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleDateString(); // Short date for users
+        }
+    </script>
+</body>
+
+</html>

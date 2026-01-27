@@ -2,6 +2,7 @@ package com.example.workflow_management_system.service;
 
 import com.example.workflow_management_system.dto.RequestCreateRequest;
 import com.example.workflow_management_system.dto.RequestResponse;
+import com.example.workflow_management_system.dto.RequestActionResponse;
 import com.example.workflow_management_system.model.*;
 import com.example.workflow_management_system.repository.RequestRepository;
 import com.example.workflow_management_system.repository.UserRepository;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -30,19 +32,22 @@ public class RequestService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final RequestAssignmentService requestAssignmentService;
+    private final com.example.workflow_management_system.repository.RequestActionRepository requestActionRepository;
 
     public RequestService(RequestRepository requestRepository,
             WorkflowRepository workflowRepository,
             WorkflowStepRepository workflowStepRepository,
             UserRepository userRepository,
             ObjectMapper objectMapper,
-            RequestAssignmentService requestAssignmentService) {
+            RequestAssignmentService requestAssignmentService,
+            com.example.workflow_management_system.repository.RequestActionRepository requestActionRepository) {
         this.requestRepository = requestRepository;
         this.workflowRepository = workflowRepository;
         this.workflowStepRepository = workflowStepRepository;
         this.userRepository = userRepository;
         this.objectMapper = objectMapper;
         this.requestAssignmentService = requestAssignmentService;
+        this.requestActionRepository = requestActionRepository;
     }
 
     public RequestResponse createRequest(RequestCreateRequest createRequest) {
@@ -104,6 +109,127 @@ public class RequestService {
         List<Request> requests = requestRepository.findByTenantId(tenantId);
         return requests.stream()
                 .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequestResponse> getMyRequests() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
+        return requestRepository.findByTenantIdAndCreatedBy_Id(tenantId, currentUser.getId()).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequestResponse> getPendingApprovals() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
+        // Determine role from principal. Assuming 1:1 role mapping
+        UserRole role = UserRole.valueOf(currentUser.getRole());
+
+        return requestRepository
+                .findByTenantIdAndStatusAndCurrentStep_RequiredRole(tenantId, RequestStatus.IN_PROGRESS, role).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    public void approveRequest(Long requestId, String comment) {
+        processAction(requestId, comment, ActionType.APPROVE);
+    }
+
+    public void rejectRequest(Long requestId, String comment) {
+        processAction(requestId, comment, ActionType.REJECT);
+    }
+
+    private void processAction(Long requestId, String comment, ActionType actionType) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
+        User user = userRepository.findById(currentUser.getId()).orElseThrow();
+
+        Request request = requestRepository.findByIdAndTenantId(requestId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found"));
+
+        if (request.getStatus() != RequestStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request is not in progress");
+        }
+
+        WorkflowStep currentStep = request.getCurrentStep();
+
+        // Validate Role (skip check if AUTO_APPROVE system action, but here we confuse
+        // SYSTEM with User Action for now)
+        // Ideally we separate system auto-approve. For USER action, check role.
+        if (actionType != ActionType.AUTO_APPROVE) {
+            if (!currentUser.getRole().equals(currentStep.getRequiredRole().name())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have the required role to approve this step.");
+            }
+            // Mark assignment complete
+            requestAssignmentService.completeAssignment(request, user);
+        }
+
+        // Record Action
+        RequestAction action = new RequestAction(request, user, actionType, currentStep, null, comment, tenantId);
+
+        if (actionType == ActionType.REJECT) {
+            request.setStatus(RequestStatus.REJECTED);
+            requestActionRepository.save(action);
+            requestRepository.save(request);
+            return;
+        }
+
+        // Handle APPROVE / AUTO_APPROVE
+        List<WorkflowStep> allSteps = workflowStepRepository
+                .findByWorkflowIdOrderByStepOrderAsc(request.getWorkflow().getId());
+        WorkflowStep nextStep = allSteps.stream()
+                .filter(s -> s.getStepOrder() > currentStep.getStepOrder())
+                .findFirst()
+                .orElse(null);
+
+        action.setToStep(nextStep); // Can be null if finished
+        requestActionRepository.save(action);
+
+        if (nextStep == null) {
+            request.setStatus(RequestStatus.COMPLETED);
+            request.setCurrentStep(currentStep); // Stay on last step visually or handle differently? Standard is stay.
+        } else {
+            request.setCurrentStep(nextStep);
+            // Create new Assignments
+            requestAssignmentService.createAssignmentsForStep(request, nextStep);
+
+            // Check Auto-Approve
+            if (nextStep.isAutoApprove()) {
+                // Trigger system auto approve
+                // Recursive or separate call?
+                // We need to simulate System User action or similar.
+                // For now, let's just log it as the SAME user but with action Auto-Approve to
+                // keep it simple,
+                // OR we leave it for a background job. USER REQUEST says: "system automatically
+                // processes".
+                // Since we are in a transaction, we can just proceed.
+                processAction(requestId, "System Auto-Approved", ActionType.AUTO_APPROVE);
+            }
+        }
+        requestRepository.save(request);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequestActionResponse> getRequestHistory(Long requestId) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        return requestActionRepository.findByRequestIdAndTenantIdOrderByActionTimeAsc(requestId, tenantId)
+                .stream()
+                .map(action -> new RequestActionResponse(
+                        action.getId(),
+                        action.getRequest().getId(),
+                        action.getActionBy().getId(),
+                        action.getActionBy().getUsername(),
+                        action.getActionType(),
+                        action.getFromStep().getId(),
+                        action.getFromStep().getStepName(),
+                        action.getToStep() != null ? action.getToStep().getId() : null,
+                        action.getToStep() != null ? action.getToStep().getStepName() : null,
+                        action.getComments(),
+                        action.getActionTime()))
                 .collect(Collectors.toList());
     }
 

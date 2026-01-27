@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <div th:replace="~{fragments/layout :: head}"></div>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div th:replace="~{fragments/layout :: sidebar}"></div>
+
+        <!-- Main Content -->
+        <div class="main-wrapper">
+            <div th:replace="~{fragments/layout :: topbar}"></div>
+
+            <main class="page-content">
+                <h1 class="mb-4">Create New Request</h1>
+
+                <div class="card max-w-2xl mx-auto">
+                    <form id="createRequestForm">
+                        <div class="form-group mb-6">
+                            <label class="form-label">Select Workflow</label>
+                            <select id="workflowId" class="form-control" required>
+                                <option value="">Loading workflows...</option>
+                            </select>
+                            <p id="workflowDesc" class="text-sm text-muted mt-2"></p>
+                        </div>
+
+                        <!-- Dynamic Payload Section -->
+                        <div class="mb-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="form-label m-0">Request Data</label>
+                                <button type="button" onclick="addField()" class="btn btn-outline btn-sm">+ Add
+                                    Field</button>
+                            </div>
+                            <div id="payloadFields"
+                                class="space-y-3 bg-dark-lighter p-4 rounded border border-gray-700">
+                                <p id="emptyPayloadMsg" class="text-sm text-muted text-center italic">Add fields to
+                                    provide data for this request (e.g. Amount, Date, Reason).</p>
+                            </div>
+                        </div>
+
+                        <div id="formError" class="alert alert-error hidden mb-4"></div>
+
+                        <div class="flex justify-end gap-2 mt-6">
+                            <a href="/my-requests" class="btn btn-outline">Cancel</a>
+                            <button type="submit" id="submitBtn" class="btn btn-primary">Submit Request</button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Layout Scripts -->
+    <div th:replace="~{fragments/layout :: scripts}"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            const ctx = requireAuth(['USER', 'ADMIN', 'SUPER_ADMIN']);
+            if (!ctx) return;
+
+            loadWorkflows();
+            document.getElementById('createRequestForm').addEventListener('submit', handleSubmit);
+        }
+
+        async function loadWorkflows() {
+            const select = document.getElementById('workflowId');
+            try {
+                // Fetch workflows. Assuming /api/workflows returns list.
+                // We might need to filter for active ones.
+                const workflows = await apiCall('/api/workflows');
+
+                select.innerHTML = '<option value="">-- Select a Workflow --</option>';
+                workflows.forEach(w => {
+                    if (w.active) {
+                        const opt = document.createElement('option');
+                        opt.value = w.id;
+                        opt.textContent = w.name;
+                        opt.dataset.desc = w.description || '';
+                        select.appendChild(opt);
+                    }
+                });
+
+                select.addEventListener('change', (e) => {
+                    const desc = e.target.selectedOptions[0].dataset.desc;
+                    document.getElementById('workflowDesc').textContent = desc;
+                });
+
+            } catch (err) {
+                select.innerHTML = '<option value="">Error loading workflows</option>';
+                console.error(err);
+            }
+        }
+
+        function addField() {
+            document.getElementById('emptyPayloadMsg').style.display = 'none';
+            const container = document.getElementById('payloadFields');
+            const id = Date.now();
+
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-start';
+            div.innerHTML = `
+                <input type="text" placeholder="Key (e.g. Amount)" class="form-control flex-1 field-key" required>
+                <input type="text" placeholder="Value" class="form-control flex-1 field-value" required>
+                <button type="button" onclick="this.parentElement.remove()" class="btn btn-outline btn-sm text-error" style="border-color:var(--error)">X</button>
+            `;
+            container.appendChild(div);
+            // Optionally focus first input
+            div.querySelector('input').focus();
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            setLoading('submitBtn', true);
+            document.getElementById('formError').classList.add('hidden');
+
+            try {
+                const workflowId = document.getElementById('workflowId').value;
+                if (!workflowId) throw new Error("Please select a workflow");
+
+                // Construct Payload
+                const payload = {};
+                document.querySelectorAll('#payloadFields > div').forEach(div => {
+                    const key = div.querySelector('.field-key').value.trim();
+                    const value = div.querySelector('.field-value').value.trim();
+                    if (key) payload[key] = value;
+                });
+
+                if (Object.keys(payload).length === 0) {
+                    // Allow empty? Maybe.
+                }
+
+                const body = {
+                    workflowId: workflowId,
+                    payload: payload // Controller expects map or object? Service converts to JSON string.
+                };
+
+                await apiCall('/api/requests', 'POST', body);
+
+                // Redirect
+                window.location.href = '/my-requests';
+
+            } catch (err) {
+                const errDiv = document.getElementById('formError');
+                errDiv.textContent = err.message;
+                errDiv.classList.remove('hidden');
+            } finally {
+                setLoading('submitBtn', false, 'Submit Request');
+            }
+        }
+    </script>
+</body>
+
+</html>

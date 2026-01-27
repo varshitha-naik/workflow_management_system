@@ -15,9 +15,12 @@ import java.util.List;
 public class RequestController {
 
     private final RequestService requestService;
+    private final com.example.workflow_management_system.service.RequestAssignmentService requestAssignmentService;
 
-    public RequestController(RequestService requestService) {
+    public RequestController(RequestService requestService,
+            com.example.workflow_management_system.service.RequestAssignmentService requestAssignmentService) {
         this.requestService = requestService;
+        this.requestAssignmentService = requestAssignmentService;
     }
 
     @PostMapping
@@ -36,5 +39,38 @@ public class RequestController {
     public ResponseEntity<RequestResponse> getRequest(@PathVariable Long id) {
         RequestResponse request = requestService.getRequest(id);
         return ResponseEntity.ok(request);
+    }
+
+    @GetMapping("/my")
+    public ResponseEntity<List<RequestResponse>> getMyRequests() {
+        return ResponseEntity.ok(requestService.getMyRequests());
+    }
+
+    @GetMapping("/approvals")
+    public ResponseEntity<List<RequestResponse>> getPendingApprovals() {
+        return ResponseEntity.ok(requestService.getPendingApprovals());
+    }
+
+    @GetMapping("/assignments")
+    public ResponseEntity<List<com.example.workflow_management_system.dto.RequestAssignmentResponse>> getMyAssignments() {
+        return ResponseEntity.ok(requestAssignmentService.getMyAssignments());
+    }
+
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<Void> approveRequest(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        requestService.approveRequest(id, body.getOrDefault("comments", ""));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<Void> rejectRequest(@PathVariable Long id, @RequestBody java.util.Map<String, String> body) {
+        requestService.rejectRequest(id, body.getOrDefault("comments", ""));
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<com.example.workflow_management_system.dto.RequestActionResponse>> getRequestHistory(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(requestService.getRequestHistory(id));
     }
 }

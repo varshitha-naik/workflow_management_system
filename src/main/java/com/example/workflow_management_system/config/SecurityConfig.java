@@ -54,7 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/", "/login", "/forgot-password", "/reset-password", "/set-password",
                                 "/dashboard", "/profile",
-                                "/users", "/tenants", "/workflows/**", "/workflow-steps")
+                                "/users", "/tenants", "/workflows/**", "/workflow-steps",
+                                "/requests/**", "/my-requests", "/approvals/**", "/assignments/**")
                         .permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").authenticated()
