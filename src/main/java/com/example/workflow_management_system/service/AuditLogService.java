@@ -65,13 +65,14 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuditLog> getAuditLogs(String entityType, String entityId) {
+    public org.springframework.data.domain.Page<AuditLog> getAuditLogs(String entityType, String entityId,
+            org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         if (entityType != null && entityId != null) {
             return auditLogRepository.findByEntityTypeAndEntityIdAndTenantIdOrderByTimestampDesc(entityType, entityId,
-                    tenantId);
+                    tenantId, pageable); // Mismatch in args? Repository method needs pageable if I promised to use it.
         }
-        return auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId);
+        return auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId, pageable);
     }
 
     @Transactional(readOnly = true)

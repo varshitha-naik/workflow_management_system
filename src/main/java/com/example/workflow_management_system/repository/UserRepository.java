@@ -18,4 +18,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     java.util.Optional<User> findByUsernameOrEmail(
             @org.springframework.data.repository.query.Param("username") String username,
             @org.springframework.data.repository.query.Param("email") String email);
+
+    org.springframework.data.domain.Page<User> findByTenant_Id(Long tenantId,
+            org.springframework.data.domain.Pageable pageable);
 }

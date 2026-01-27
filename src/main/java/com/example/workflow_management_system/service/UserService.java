@@ -169,22 +169,32 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponse> getUsersByTenant(Long tenantId) {
+    public org.springframework.data.domain.Page<UserResponse> getUsersByTenant(Long tenantId,
+            org.springframework.data.domain.Pageable pageable) {
         com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(tenantId);
 
         if (!tenantRepository.existsById(tenantId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
-        return userRepository.findByTenant_Id(tenantId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return userRepository.findByTenant_Id(tenantId, pageable)
+                .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsersByTenant(Long tenantId) {
+        return getUsersByTenant(tenantId, org.springframework.data.domain.Pageable.unpaged()).getContent();
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<UserResponse> getAllUsers(
+            org.springframework.data.domain.Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public List<UserResponse> getAllUsers() {
-        return userRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return getAllUsers(org.springframework.data.domain.Pageable.unpaged()).getContent();
     }
 
     public UserResponse updateUserStatus(Long id, boolean active) {

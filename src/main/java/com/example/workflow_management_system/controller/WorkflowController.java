@@ -25,8 +25,9 @@ public class WorkflowController {
     }
 
     @GetMapping
-    public ResponseEntity<List<WorkflowResponse>> getAllWorkflows() {
-        return ResponseEntity.ok(workflowService.getAllWorkflows());
+    public ResponseEntity<org.springframework.data.domain.Page<WorkflowResponse>> getAllWorkflows(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(workflowService.getAllWorkflows(pageable));
     }
 
     @GetMapping("/{id}")

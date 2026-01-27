@@ -27,6 +27,7 @@ public class AuditLog {
 
     @CreationTimestamp
     @Column(name = "timestamp", nullable = false, updatable = false)
+    @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
     private LocalDateTime timestamp;
 
     @Column(name = "tenant_id", nullable = false)

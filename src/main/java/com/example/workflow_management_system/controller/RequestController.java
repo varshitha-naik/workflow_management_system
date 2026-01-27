@@ -30,8 +30,9 @@ public class RequestController {
     }
 
     @GetMapping
-    public ResponseEntity<List<RequestResponse>> getAllRequests() {
-        List<RequestResponse> requests = requestService.getAllRequests();
+    public ResponseEntity<org.springframework.data.domain.Page<RequestResponse>> getAllRequests(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<RequestResponse> requests = requestService.getAllRequests(pageable);
         return ResponseEntity.ok(requests);
     }
 
@@ -42,8 +43,9 @@ public class RequestController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<List<RequestResponse>> getMyRequests() {
-        return ResponseEntity.ok(requestService.getMyRequests());
+    public ResponseEntity<org.springframework.data.domain.Page<RequestResponse>> getMyRequests(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(requestService.getMyRequests(pageable));
     }
 
     @GetMapping("/approvals")
@@ -52,8 +54,9 @@ public class RequestController {
     }
 
     @GetMapping("/assignments")
-    public ResponseEntity<List<com.example.workflow_management_system.dto.RequestAssignmentResponse>> getMyAssignments() {
-        return ResponseEntity.ok(requestAssignmentService.getMyAssignments());
+    public ResponseEntity<org.springframework.data.domain.Page<com.example.workflow_management_system.dto.RequestAssignmentResponse>> getMyAssignments(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(requestAssignmentService.getMyAssignments(pageable));
     }
 
     @PostMapping("/{id}/approve")

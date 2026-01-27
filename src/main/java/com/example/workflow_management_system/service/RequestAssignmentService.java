@@ -125,14 +125,14 @@ public class RequestAssignmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<RequestAssignmentResponse> getMyAssignments() {
+    public org.springframework.data.domain.Page<RequestAssignmentResponse> getMyAssignments(
+            org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         Long userId = SecurityUtils.getCurrentUser().getId();
 
-        return requestAssignmentRepository.findByAssignedTo_IdAndTenantIdOrderByAssignedAtDesc(userId, tenantId)
-                .stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return requestAssignmentRepository
+                .findByAssignedTo_IdAndTenantIdOrderByAssignedAtDesc(userId, tenantId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)

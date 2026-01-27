@@ -27,8 +27,10 @@ public class WorkflowStepController {
     }
 
     @GetMapping("/workflows/{workflowId}/steps")
-    public ResponseEntity<List<WorkflowStepResponse>> getStepsByWorkflow(@PathVariable Long workflowId) {
-        return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId));
+    public ResponseEntity<org.springframework.data.domain.Page<WorkflowStepResponse>> getStepsByWorkflow(
+            @PathVariable Long workflowId,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId, pageable));
     }
 
     @GetMapping("/workflow-steps/{id}")

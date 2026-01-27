@@ -14,4 +14,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     List<AuditLog> findByTenantIdOrderByTimestampDesc(Long tenantId);
 
     List<AuditLog> findTop20ByTenantIdOrderByTimestampDesc(Long tenantId);
+
+    org.springframework.data.domain.Page<AuditLog> findByTenantIdOrderByTimestampDesc(Long tenantId,
+            org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<AuditLog> findByEntityTypeAndEntityIdAndTenantIdOrderByTimestampDesc(
+            String entityType, String entityId, Long tenantId, org.springframework.data.domain.Pageable pageable);
 }

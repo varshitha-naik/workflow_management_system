@@ -11,4 +11,7 @@ public interface WorkflowRepository extends JpaRepository<Workflow, Long> {
     List<Workflow> findByTenantId(Long tenantId);
 
     boolean existsByNameAndTenantId(String name, Long tenantId);
+
+    org.springframework.data.domain.Page<Workflow> findByTenantId(Long tenantId,
+            org.springframework.data.domain.Pageable pageable);
 }

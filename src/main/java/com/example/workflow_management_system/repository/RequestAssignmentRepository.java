@@ -19,4 +19,7 @@ public interface RequestAssignmentRepository extends JpaRepository<RequestAssign
     List<RequestAssignment> findByRequestIdAndTenantIdOrderByAssignedAtAsc(Long requestId, Long tenantId);
 
     List<RequestAssignment> findAllByStatusAndDueAtBefore(AssignmentStatus status, java.time.LocalDateTime dueAt);
+
+    org.springframework.data.domain.Page<RequestAssignment> findByAssignedTo_IdAndTenantIdOrderByAssignedAtDesc(
+            Long userId, Long tenantId, org.springframework.data.domain.Pageable pageable);
 }

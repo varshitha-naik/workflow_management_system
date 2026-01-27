@@ -62,15 +62,15 @@ public class WorkflowStepService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkflowStepResponse> getStepsByWorkflow(Long workflowId) {
+    public org.springframework.data.domain.Page<WorkflowStepResponse> getStepsByWorkflow(Long workflowId,
+            org.springframework.data.domain.Pageable pageable) {
         Workflow workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow not found"));
 
         SecurityUtils.validateTenantAccess(workflow.getTenant().getId());
 
-        return workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)

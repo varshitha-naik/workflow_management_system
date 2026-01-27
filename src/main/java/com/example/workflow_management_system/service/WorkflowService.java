@@ -71,16 +71,16 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkflowResponse> getAllWorkflows() {
+    public org.springframework.data.domain.Page<WorkflowResponse> getAllWorkflows(
+            org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentUser().getTenantId();
 
         if (tenantId == null) {
-            return List.of();
+            return org.springframework.data.domain.Page.empty();
         }
 
-        return workflowRepository.findByTenantId(tenantId).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return workflowRepository.findByTenantId(tenantId, pageable)
+                .map(this::mapToResponse);
     }
 
     public WorkflowResponse updateWorkflow(Long id, WorkflowRequest request) {

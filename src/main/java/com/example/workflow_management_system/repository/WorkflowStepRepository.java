@@ -14,4 +14,7 @@ public interface WorkflowStepRepository extends JpaRepository<WorkflowStep, Long
 
     java.util.Optional<WorkflowStep> findFirstByWorkflowIdAndStepOrderGreaterThanOrderByStepOrderAsc(Long workflowId,
             int stepOrder);
+
+    org.springframework.data.domain.Page<WorkflowStep> findByWorkflowIdOrderByStepOrderAsc(Long workflowId,
+            org.springframework.data.domain.Pageable pageable);
 }

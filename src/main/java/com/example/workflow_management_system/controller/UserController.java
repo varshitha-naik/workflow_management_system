@@ -30,7 +30,9 @@ public class UserController {
 
     @GetMapping
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<java.util.List<UserResponse>> getAllUsers(@RequestParam(required = false) Long tenantId) {
+    public ResponseEntity<org.springframework.data.domain.Page<UserResponse>> getAllUsers(
+            @RequestParam(required = false) Long tenantId,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
         com.example.workflow_management_system.security.UserPrincipal currentUser = (com.example.workflow_management_system.security.UserPrincipal) authentication
@@ -38,12 +40,12 @@ public class UserController {
 
         if ("SUPER_ADMIN".equals(currentUser.getRole())) {
             if (tenantId != null) {
-                return ResponseEntity.ok(userService.getUsersByTenant(tenantId));
+                return ResponseEntity.ok(userService.getUsersByTenant(tenantId, pageable));
             }
-            return ResponseEntity.ok(userService.getAllUsers());
+            return ResponseEntity.ok(userService.getAllUsers(pageable));
         }
 
-        return ResponseEntity.ok(userService.getUsersByTenant(currentUser.getTenantId()));
+        return ResponseEntity.ok(userService.getUsersByTenant(currentUser.getTenantId(), pageable));
     }
 
     @PutMapping("/{id}")

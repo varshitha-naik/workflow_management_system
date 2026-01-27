@@ -20,10 +20,11 @@ public class AuditLogController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<AuditLog>> getAuditLogs(
+    public ResponseEntity<org.springframework.data.domain.Page<AuditLog>> getAuditLogs(
             @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) String entityId) {
-        return ResponseEntity.ok(auditLogService.getAuditLogs(entityType, entityId));
+            @RequestParam(required = false) String entityId,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(auditLogService.getAuditLogs(entityType, entityId, pageable));
     }
 
     @GetMapping("/recent")

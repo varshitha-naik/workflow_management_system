@@ -114,21 +114,20 @@ public class RequestService {
     }
 
     @Transactional(readOnly = true)
-    public List<RequestResponse> getAllRequests() {
+    public org.springframework.data.domain.Page<RequestResponse> getAllRequests(
+            org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
-        List<Request> requests = requestRepository.findByTenantId(tenantId);
-        return requests.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return requestRepository.findByTenantId(tenantId, pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
-    public List<RequestResponse> getMyRequests() {
+    public org.springframework.data.domain.Page<RequestResponse> getMyRequests(
+            org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         UserPrincipal currentUser = SecurityUtils.getCurrentUser();
-        return requestRepository.findByTenantIdAndCreatedBy_Id(tenantId, currentUser.getId()).stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return requestRepository.findByTenantIdAndCreatedBy_Id(tenantId, currentUser.getId(), pageable)
+                .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)

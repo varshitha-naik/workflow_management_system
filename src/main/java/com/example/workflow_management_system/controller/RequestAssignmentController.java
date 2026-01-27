@@ -18,8 +18,9 @@ public class RequestAssignmentController {
     }
 
     @GetMapping("/assignments/my")
-    public ResponseEntity<List<RequestAssignmentResponse>> getMyAssignments() {
-        return ResponseEntity.ok(requestAssignmentService.getMyAssignments());
+    public ResponseEntity<org.springframework.data.domain.Page<RequestAssignmentResponse>> getMyAssignments(
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(requestAssignmentService.getMyAssignments(pageable));
     }
 
     @GetMapping("/requests/{id}/assignments")
