@@ -4,6 +4,7 @@ import com.example.workflow_management_system.dto.RequestCreateRequest;
 import com.example.workflow_management_system.dto.RequestResponse;
 import com.example.workflow_management_system.dto.RequestActionResponse;
 import com.example.workflow_management_system.model.*;
+import com.example.workflow_management_system.repository.RequestActionRepository;
 import com.example.workflow_management_system.repository.RequestRepository;
 import com.example.workflow_management_system.repository.UserRepository;
 import com.example.workflow_management_system.repository.WorkflowRepository;
@@ -32,7 +33,8 @@ public class RequestService {
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final RequestAssignmentService requestAssignmentService;
-    private final com.example.workflow_management_system.repository.RequestActionRepository requestActionRepository;
+    private final RequestActionRepository requestActionRepository;
+    private final AuditLogService auditLogService;
 
     public RequestService(RequestRepository requestRepository,
             WorkflowRepository workflowRepository,
@@ -40,7 +42,8 @@ public class RequestService {
             UserRepository userRepository,
             ObjectMapper objectMapper,
             RequestAssignmentService requestAssignmentService,
-            com.example.workflow_management_system.repository.RequestActionRepository requestActionRepository) {
+            RequestActionRepository requestActionRepository,
+            AuditLogService auditLogService) {
         this.requestRepository = requestRepository;
         this.workflowRepository = workflowRepository;
         this.workflowStepRepository = workflowStepRepository;
@@ -48,6 +51,7 @@ public class RequestService {
         this.objectMapper = objectMapper;
         this.requestAssignmentService = requestAssignmentService;
         this.requestActionRepository = requestActionRepository;
+        this.auditLogService = auditLogService;
     }
 
     public RequestResponse createRequest(RequestCreateRequest createRequest) {
@@ -91,6 +95,12 @@ public class RequestService {
 
         Request savedRequest = requestRepository.save(request);
         requestAssignmentService.createAssignmentsForStep(savedRequest, firstStep);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("workflowId", workflow.getId());
+        details.put("workflowName", workflow.getName());
+        details.put("payload", createRequest.payload());
+        auditLogService.logEvent("REQUEST", String.valueOf(savedRequest.getId()), "REQUEST_CREATED", details);
 
         return mapToResponse(savedRequest);
     }

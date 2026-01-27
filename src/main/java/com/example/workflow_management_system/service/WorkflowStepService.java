@@ -22,10 +22,13 @@ public class WorkflowStepService {
 
     private final WorkflowStepRepository workflowStepRepository;
     private final WorkflowRepository workflowRepository;
+    private final AuditLogService auditLogService;
 
-    public WorkflowStepService(WorkflowStepRepository workflowStepRepository, WorkflowRepository workflowRepository) {
+    public WorkflowStepService(WorkflowStepRepository workflowStepRepository, WorkflowRepository workflowRepository,
+            AuditLogService auditLogService) {
         this.workflowStepRepository = workflowStepRepository;
         this.workflowRepository = workflowRepository;
+        this.auditLogService = auditLogService;
     }
 
     public WorkflowStepResponse createStep(Long workflowId, WorkflowStepRequest request) {
@@ -47,7 +50,15 @@ public class WorkflowStepService {
                 request.requiredRole(),
                 request.autoApprove());
 
-        return mapToResponse(workflowStepRepository.save(step));
+        WorkflowStep savedStep = workflowStepRepository.save(step);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("workflowId", workflowId);
+        details.put("stepName", savedStep.getStepName());
+        details.put("stepOrder", savedStep.getStepOrder());
+        auditLogService.logEvent("WORKFLOW_STEP", String.valueOf(savedStep.getId()), "WORKFLOW_STEP_CREATED", details);
+
+        return mapToResponse(savedStep);
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +102,15 @@ public class WorkflowStepService {
         step.setRequiredRole(request.requiredRole());
         step.setAutoApprove(request.autoApprove());
 
-        return mapToResponse(workflowStepRepository.save(step));
+        WorkflowStep savedStep = workflowStepRepository.save(step);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("workflowId", savedStep.getWorkflow().getId());
+        details.put("stepName", savedStep.getStepName());
+        details.put("stepOrder", savedStep.getStepOrder());
+        auditLogService.logEvent("WORKFLOW_STEP", String.valueOf(savedStep.getId()), "WORKFLOW_STEP_UPDATED", details);
+
+        return mapToResponse(savedStep);
     }
 
     public void deleteStep(Long id) {
@@ -103,6 +122,8 @@ public class WorkflowStepService {
         SecurityUtils.validateTenantAccess(step.getWorkflow().getTenant().getId());
 
         workflowStepRepository.delete(step);
+
+        auditLogService.logEvent("WORKFLOW_STEP", String.valueOf(id), "WORKFLOW_STEP_DELETED", null);
     }
 
     private void checkWriteAccess() {

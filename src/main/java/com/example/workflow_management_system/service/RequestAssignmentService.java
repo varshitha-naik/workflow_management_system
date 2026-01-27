@@ -20,17 +20,14 @@ public class RequestAssignmentService {
 
     private final RequestAssignmentRepository requestAssignmentRepository;
     private final UserRepository userRepository;
-    private final com.example.workflow_management_system.repository.AuditLogRepository auditLogRepository;
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final AuditLogService auditLogService;
 
     public RequestAssignmentService(RequestAssignmentRepository requestAssignmentRepository,
             UserRepository userRepository,
-            com.example.workflow_management_system.repository.AuditLogRepository auditLogRepository,
-            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
+            AuditLogService auditLogService) {
         this.requestAssignmentRepository = requestAssignmentRepository;
         this.userRepository = userRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.objectMapper = objectMapper;
+        this.auditLogService = auditLogService;
     }
 
     public void createAssignment(Request request, User assignee) {
@@ -48,7 +45,17 @@ public class RequestAssignmentService {
                 request.getTenantId());
         RequestAssignment saved = requestAssignmentRepository.save(assignment);
 
-        logEvent("ASSIGNMENT_CREATED", saved, null);
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("requestId", saved.getRequest().getId());
+        details.put("assignedTo", saved.getAssignedTo().getUsername());
+        details.put("status", saved.getStatus());
+
+        // System performs this usually via trigger, or user trigger?
+        // createAssignment is often called by system.
+        // logEvent(entityType, entityId, action, details) uses SecurityContext if
+        // available.
+        // But if called by RequestService (user action), it works.
+        auditLogService.logEvent("REQUEST_ASSIGNMENT", String.valueOf(saved.getId()), "ASSIGNMENT_CREATED", details);
     }
 
     public void completeAssignment(Request request, User user) {
@@ -64,7 +71,13 @@ public class RequestAssignmentService {
                 assignment.setStatus(AssignmentStatus.COMPLETED);
                 RequestAssignment saved = requestAssignmentRepository.save(assignment);
 
-                logEvent("ASSIGNMENT_COMPLETED", saved, user.getId());
+                java.util.Map<String, Object> details = new java.util.HashMap<>();
+                details.put("requestId", saved.getRequest().getId());
+                details.put("assignedTo", saved.getAssignedTo().getUsername());
+                details.put("status", saved.getStatus());
+
+                auditLogService.logEvent("REQUEST_ASSIGNMENT", String.valueOf(saved.getId()), "ASSIGNMENT_COMPLETED",
+                        details);
                 // We assume only one active assignment per user per request usually
                 break;
             }
@@ -99,34 +112,16 @@ public class RequestAssignmentService {
         for (RequestAssignment assignment : overdueAssignments) {
             assignment.setStatus(AssignmentStatus.OVERDUE);
             RequestAssignment saved = requestAssignmentRepository.save(assignment);
-            logEvent("ASSIGNMENT_OVERDUE", saved, null);
+
+            java.util.Map<String, Object> details = new java.util.HashMap<>();
+            details.put("requestId", saved.getRequest().getId());
+            details.put("assignedTo", saved.getAssignedTo().getUsername());
+            details.put("status", saved.getStatus());
+
+            // Performed by SYSTEM (null user context probably, or explicit system method)
+            auditLogService.logEvent("REQUEST_ASSIGNMENT", String.valueOf(saved.getId()), "ASSIGNMENT_OVERDUE",
+                    "SYSTEM", saved.getTenantId(), details);
         }
-    }
-
-    private void logEvent(String action, RequestAssignment assignment, Long userId) {
-        String performedBy = (userId != null) ? String.valueOf(userId) : "SYSTEM";
-
-        String detailsJson = "{}";
-        try {
-            java.util.Map<String, Object> map = new java.util.HashMap<>();
-            map.put("requestId", assignment.getRequest().getId());
-            map.put("assignedTo", assignment.getAssignedTo().getUsername());
-            map.put("status", assignment.getStatus());
-            detailsJson = objectMapper.writeValueAsString(map);
-        } catch (Exception e) {
-            // Log error, but don't fail transaction?
-            // "Code must be production-ready" -> use SLF4J, but I don't see Logger field.
-            // e.printStackTrace();
-        }
-
-        AuditLog log = new AuditLog(
-                "REQUEST_ASSIGNMENT",
-                String.valueOf(assignment.getId()),
-                action,
-                performedBy,
-                assignment.getTenantId(),
-                detailsJson);
-        auditLogRepository.save(log);
     }
 
     @Transactional(readOnly = true)

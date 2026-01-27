@@ -22,10 +22,13 @@ public class WorkflowService {
 
     private final WorkflowRepository workflowRepository;
     private final TenantRepository tenantRepository;
+    private final AuditLogService auditLogService;
 
-    public WorkflowService(WorkflowRepository workflowRepository, TenantRepository tenantRepository) {
+    public WorkflowService(WorkflowRepository workflowRepository, TenantRepository tenantRepository,
+            AuditLogService auditLogService) {
         this.workflowRepository = workflowRepository;
         this.tenantRepository = tenantRepository;
+        this.auditLogService = auditLogService;
     }
 
     public WorkflowResponse createWorkflow(WorkflowRequest request) {
@@ -48,6 +51,12 @@ public class WorkflowService {
                 request.active());
 
         Workflow savedWorkflow = workflowRepository.save(workflow);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("name", savedWorkflow.getName());
+        details.put("active", savedWorkflow.isActive());
+        auditLogService.logEvent("WORKFLOW", String.valueOf(savedWorkflow.getId()), "WORKFLOW_CREATED", details);
+
         return mapToResponse(savedWorkflow);
     }
 
@@ -64,20 +73,8 @@ public class WorkflowService {
     @Transactional(readOnly = true)
     public List<WorkflowResponse> getAllWorkflows() {
         Long tenantId = SecurityUtils.getCurrentUser().getTenantId();
-        // If SUPER_ADMIN without specific tenant, this might be null?
-        // SecurityUtils logic usually requires tenantId except for SUPER_ADMIN access
-        // check.
-        // But here we need to filter list.
-        // If SUPER_ADMIN, maybe they want to see ALL?
-        // But prompt says "list".
-        // I will assume listing for "current context tenant".
-        // If SUPER_ADMIN calls this, they get workflows for their tenant (System).
-        // If they want to see others, they'd use `getAllWorkflowsForTenant`?
-        // Prompt says "Enforce strict tenant isolation". So showing only current tenant
-        // workflows is safest.
 
         if (tenantId == null) {
-            // Should not happen for authenticated users usually unless system user
             return List.of();
         }
 
@@ -104,7 +101,14 @@ public class WorkflowService {
         workflow.setDescription(request.description());
         workflow.setActive(request.active());
 
-        return mapToResponse(workflowRepository.save(workflow));
+        Workflow saved = workflowRepository.save(workflow);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("name", saved.getName());
+        details.put("active", saved.isActive());
+        auditLogService.logEvent("WORKFLOW", String.valueOf(saved.getId()), "WORKFLOW_UPDATED", details);
+
+        return mapToResponse(saved);
     }
 
     public WorkflowResponse updateStatus(Long id, boolean active) {
@@ -116,7 +120,13 @@ public class WorkflowService {
         SecurityUtils.validateTenantAccess(workflow.getTenant().getId());
 
         workflow.setActive(active);
-        return mapToResponse(workflowRepository.save(workflow));
+        Workflow saved = workflowRepository.save(workflow);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("active", saved.isActive());
+        auditLogService.logEvent("WORKFLOW", String.valueOf(saved.getId()), "WORKFLOW_UPDATED", details);
+
+        return mapToResponse(saved);
     }
 
     public void deleteWorkflow(Long id) {
@@ -128,6 +138,8 @@ public class WorkflowService {
         SecurityUtils.validateTenantAccess(workflow.getTenant().getId());
 
         workflowRepository.delete(workflow);
+
+        auditLogService.logEvent("WORKFLOW", String.valueOf(id), "WORKFLOW_DELETED", null);
     }
 
     private void checkWriteAccess() {

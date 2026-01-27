@@ -24,16 +24,19 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository;
     private final MailService mailService;
+    private final AuditLogService auditLogService;
 
     public UserService(UserRepository userRepository, TenantRepository tenantRepository,
             PasswordEncoder passwordEncoder,
             com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository,
-            MailService mailService) {
+            MailService mailService,
+            AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.passwordEncoder = passwordEncoder;
         this.inviteTokenRepository = inviteTokenRepository;
         this.mailService = mailService;
+        this.auditLogService = auditLogService;
     }
 
     public UserResponse createUser(UserRequest request) {
@@ -89,6 +92,12 @@ public class UserService {
         mailService.sendInvitationEmail(savedUser.getEmail(), savedUser.getUsername(), tenant.getName(),
                 inviteToken.getToken());
 
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("username", savedUser.getUsername());
+        details.put("role", savedUser.getRole());
+        details.put("email", savedUser.getEmail());
+        auditLogService.logEvent("USER", String.valueOf(savedUser.getId()), "USER_CREATED", details);
+
         return mapToResponse(savedUser);
     }
 
@@ -139,6 +148,13 @@ public class UserService {
         // user.setTenant(tenant); // Tenant cannot be changed via update
 
         User updatedUser = userRepository.save(user);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("username", updatedUser.getUsername());
+        details.put("role", updatedUser.getRole());
+        details.put("email", updatedUser.getEmail());
+        auditLogService.logEvent("USER", String.valueOf(updatedUser.getId()), "USER_UPDATED", details);
+
         return mapToResponse(updatedUser);
     }
 

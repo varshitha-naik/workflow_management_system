@@ -25,17 +25,20 @@ public class RequestActionService {
     private final WorkflowStepRepository workflowStepRepository;
     private final RequestAssignmentService requestAssignmentService;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     public RequestActionService(RequestActionRepository requestActionRepository,
             RequestRepository requestRepository,
             WorkflowStepRepository workflowStepRepository,
             UserRepository userRepository,
-            RequestAssignmentService requestAssignmentService) {
+            RequestAssignmentService requestAssignmentService,
+            AuditLogService auditLogService) {
         this.requestActionRepository = requestActionRepository;
         this.requestRepository = requestRepository;
         this.workflowStepRepository = workflowStepRepository;
         this.userRepository = userRepository;
         this.requestAssignmentService = requestAssignmentService;
+        this.auditLogService = auditLogService;
     }
 
     public RequestActionResponse createAction(Long requestId, RequestActionCreateRequest createRequest) {
@@ -99,12 +102,22 @@ public class RequestActionService {
             request.setStatus(RequestStatus.REJECTED);
         }
 
-        action.setToStep(nextStep); // Null if rejected or completed
+        action.setToStep(nextStep);
 
-        requestActionRepository.save(action);
+        RequestAction savedAction = requestActionRepository.save(action);
         requestRepository.save(request);
 
-        return mapToResponse(action);
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("requestId", request.getId());
+        details.put("actionType", savedAction.getActionType());
+        details.put("fromStep", savedAction.getFromStep().getStepName());
+        if (savedAction.getToStep() != null) {
+            details.put("toStep", savedAction.getToStep().getStepName());
+        }
+        auditLogService.logEvent("REQUEST_ACTION", String.valueOf(savedAction.getId()), "REQUEST_ACTION_CREATED",
+                details);
+
+        return mapToResponse(savedAction);
     }
 
     @Transactional(readOnly = true)
