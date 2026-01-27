@@ -52,7 +52,7 @@
             container.innerHTML = '';
 
             try {
-                const requests = await apiCall('/api/requests');
+                const requests = await apiCall('/requests');
                 loading.classList.add('hidden');
 
                 if (!requests || requests.length === 0) {

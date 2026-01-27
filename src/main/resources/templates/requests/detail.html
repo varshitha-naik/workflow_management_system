@@ -203,7 +203,7 @@
 
         async function loadRequest() {
             try {
-                currentRequest = await apiCall(`/api/requests/${requestId}`);
+                currentRequest = await apiCall(`/requests/${requestId}`);
 
                 // Update Header
                 document.getElementById('reqTitle').textContent = `Request #${currentRequest.id}: ${currentRequest.workflowName}`;
@@ -230,7 +230,7 @@
                 }
 
                 // Load Steps for Stepper
-                const steps = await apiCall(`/api/workflows/${currentRequest.workflowId}/steps`);
+                const steps = await apiCall(`/workflows/${currentRequest.workflowId}/steps`);
                 requestSteps = steps;
                 renderStepper(steps, currentRequest.currentStepId, currentRequest.status);
 
@@ -242,7 +242,7 @@
 
         async function loadHistory() {
             try {
-                const history = await apiCall(`/api/requests/${requestId}/history`);
+                const history = await apiCall(`/requests/${requestId}/history`);
                 const container = document.getElementById('historyContainer');
 
                 if (!history || history.length === 0) {
@@ -340,7 +340,7 @@
 
             setLoading('confirmBtn', true);
             try {
-                await apiCall(`/api/requests/${requestId}/${endpoint}`, 'POST', { comments });
+                await apiCall(`/requests/${requestId}/${endpoint}`, 'POST', { comments });
                 window.location.reload();
             } catch (err) {
                 document.getElementById('modalError').textContent = err.message;

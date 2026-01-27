@@ -72,7 +72,7 @@
             try {
                 // Fetch workflows. Assuming /api/workflows returns list.
                 // We might need to filter for active ones.
-                const workflows = await apiCall('/api/workflows');
+                const workflows = await apiCall('/workflows');
 
                 select.innerHTML = '<option value="">-- Select a Workflow --</option>';
                 workflows.forEach(w => {
@@ -140,7 +140,7 @@
                     payload: payload // Controller expects map or object? Service converts to JSON string.
                 };
 
-                await apiCall('/api/requests', 'POST', body);
+                await apiCall('/requests', 'POST', body);
 
                 // Redirect
                 window.location.href = '/my-requests';

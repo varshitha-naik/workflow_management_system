@@ -58,7 +58,7 @@
             container.innerHTML = '';
 
             try {
-                const requests = await apiCall('/api/requests/my');
+                const requests = await apiCall('/requests/my');
                 loading.classList.add('hidden');
 
                 if (!requests || requests.length === 0) {

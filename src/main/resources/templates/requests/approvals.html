@@ -76,7 +76,7 @@
             container.innerHTML = '';
 
             try {
-                const requests = await apiCall('/api/requests/approvals');
+                const requests = await apiCall('/requests/approvals');
                 loading.classList.add('hidden');
 
                 if (!requests || requests.length === 0) {
@@ -147,7 +147,7 @@
             try {
                 // Endpoint: /requests/{id}/approve or /reject
                 const endpoint = type === 'APPROVE' ? 'approve' : 'reject';
-                await apiCall(`/api/requests/${id}/${endpoint}`, 'POST', { comments });
+                await apiCall(`/requests/${id}/${endpoint}`, 'POST', { comments });
 
                 closeActionModal();
                 loadApprovals(); // Refresh table

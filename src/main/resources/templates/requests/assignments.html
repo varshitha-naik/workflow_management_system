@@ -52,7 +52,7 @@
             container.innerHTML = '';
 
             try {
-                const assignments = await apiCall('/api/requests/assignments');
+                const assignments = await apiCall('/requests/assignments');
                 loading.classList.add('hidden');
 
                 if (!assignments || assignments.length === 0) {
