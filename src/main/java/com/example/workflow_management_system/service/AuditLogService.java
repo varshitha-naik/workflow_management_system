@@ -16,11 +16,12 @@ import java.util.Map;
 public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
-    private final ObjectMapper objectMapper;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
-    public AuditLogService(AuditLogRepository auditLogRepository, ObjectMapper objectMapper) {
+    public AuditLogService(AuditLogRepository auditLogRepository,
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.auditLogRepository = auditLogRepository;
-        this.objectMapper = objectMapper;
+        this.eventPublisher = eventPublisher;
     }
 
     public void logEvent(String entityType, String entityId, String action, Map<String, Object> details) {
@@ -35,33 +36,21 @@ public class AuditLogService {
             // Likely system action or no auth context
         }
 
-        String detailsJson = "{}";
-        if (details != null) {
-            try {
-                detailsJson = objectMapper.writeValueAsString(details);
-            } catch (JsonProcessingException e) {
-                // Ignore error, keep empty
-            }
-        }
-
-        AuditLog log = new AuditLog(entityType, entityId, action, performedBy, tenantId, detailsJson);
-        auditLogRepository.save(log);
+        publishEvent(entityType, entityId, action, performedBy, tenantId, details);
     }
 
     // Allow logging with explicit user ID (e.g. when context is not available or
     // for system jobs masquerading users)
     public void logEvent(String entityType, String entityId, String action, String performedBy, Long tenantId,
             Map<String, Object> details) {
-        String detailsJson = "{}";
-        if (details != null) {
-            try {
-                detailsJson = objectMapper.writeValueAsString(details);
-            } catch (JsonProcessingException e) {
-                // Ignore
-            }
-        }
-        AuditLog log = new AuditLog(entityType, entityId, action, performedBy, tenantId, detailsJson);
-        auditLogRepository.save(log);
+        publishEvent(entityType, entityId, action, performedBy, tenantId, details);
+    }
+
+    private void publishEvent(String entityType, String entityId, String action, String performedBy, Long tenantId,
+            Map<String, Object> details) {
+        com.example.workflow_management_system.event.AuditEvent event = new com.example.workflow_management_system.event.AuditEvent(
+                entityType, entityId, action, performedBy, tenantId, details);
+        eventPublisher.publishEvent(event);
     }
 
     @Transactional(readOnly = true)

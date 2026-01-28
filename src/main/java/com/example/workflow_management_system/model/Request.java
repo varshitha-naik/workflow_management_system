@@ -7,7 +7,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "requests")
+@Table(name = "requests", indexes = {
+        @Index(name = "idx_request_tenant_status", columnList = "tenant_id, status"),
+        @Index(name = "idx_request_workflow", columnList = "workflow_id"),
+        @Index(name = "idx_request_status", columnList = "status"),
+        @Index(name = "idx_request_created_at", columnList = "created_at")
+})
 public class Request {
 
     @Id

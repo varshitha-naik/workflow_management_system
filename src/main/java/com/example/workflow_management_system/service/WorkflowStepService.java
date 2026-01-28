@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +33,7 @@ public class WorkflowStepService {
         this.auditLogService = auditLogService;
     }
 
+    @CacheEvict(value = "workflowSteps", allEntries = true)
     public WorkflowStepResponse createStep(Long workflowId, WorkflowStepRequest request) {
         checkWriteAccess();
 
@@ -62,6 +65,7 @@ public class WorkflowStepService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "workflowSteps", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #workflowId + '-' + #pageable")
     public org.springframework.data.domain.Page<WorkflowStepResponse> getStepsByWorkflow(Long workflowId,
             org.springframework.data.domain.Pageable pageable) {
         Workflow workflow = workflowRepository.findById(workflowId)
@@ -83,6 +87,7 @@ public class WorkflowStepService {
         return mapToResponse(step);
     }
 
+    @CacheEvict(value = "workflowSteps", allEntries = true)
     public WorkflowStepResponse updateStep(Long id, WorkflowStepRequest request) {
         checkWriteAccess();
 
@@ -113,6 +118,7 @@ public class WorkflowStepService {
         return mapToResponse(savedStep);
     }
 
+    @CacheEvict(value = "workflowSteps", allEntries = true)
     public void deleteStep(Long id) {
         checkWriteAccess();
 

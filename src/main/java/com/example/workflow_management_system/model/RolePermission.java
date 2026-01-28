@@ -1,24 +1,21 @@
 package com.example.workflow_management_system.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
 
 @Entity
-@Table(name = "role_permissions")
+@Table(name = "role_permissions", uniqueConstraints = {
+        @UniqueConstraint(columnNames = { "role_name", "permission_key" })
+})
 public class RolePermission {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "role_name", nullable = false)
     private String roleName;
 
-    @Column(nullable = false)
+    @Column(name = "permission_key", nullable = false)
     private String permissionKey;
 
     @Column(nullable = true)

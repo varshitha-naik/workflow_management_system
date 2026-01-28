@@ -12,6 +12,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +34,11 @@ public class WorkflowService {
         this.auditLogService = auditLogService;
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "workflows", allEntries = true),
+            @CacheEvict(value = "workflow_details", allEntries = true),
+            @CacheEvict(value = "workflowSteps", allEntries = true)
+    })
     public WorkflowResponse createWorkflow(WorkflowRequest request) {
         checkWriteAccess();
 
@@ -61,6 +69,7 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "workflow_details", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #id")
     public WorkflowResponse getWorkflowById(Long id) {
         Workflow workflow = workflowRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow not found"));
@@ -71,6 +80,7 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = "workflows", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #pageable")
     public org.springframework.data.domain.Page<WorkflowResponse> getAllWorkflows(
             org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentUser().getTenantId();
@@ -83,6 +93,11 @@ public class WorkflowService {
                 .map(this::mapToResponse);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "workflows", allEntries = true),
+            @CacheEvict(value = "workflow_details", allEntries = true),
+            @CacheEvict(value = "workflowSteps", allEntries = true)
+    })
     public WorkflowResponse updateWorkflow(Long id, WorkflowRequest request) {
         checkWriteAccess();
 
@@ -111,6 +126,11 @@ public class WorkflowService {
         return mapToResponse(saved);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "workflows", allEntries = true),
+            @CacheEvict(value = "workflow_details", allEntries = true),
+            @CacheEvict(value = "workflowSteps", allEntries = true)
+    })
     public WorkflowResponse updateStatus(Long id, boolean active) {
         checkWriteAccess();
 
@@ -129,6 +149,11 @@ public class WorkflowService {
         return mapToResponse(saved);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "workflows", allEntries = true),
+            @CacheEvict(value = "workflow_details", allEntries = true),
+            @CacheEvict(value = "workflowSteps", allEntries = true)
+    })
     public void deleteWorkflow(Long id) {
         checkWriteAccess();
 

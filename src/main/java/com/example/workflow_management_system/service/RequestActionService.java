@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 @Transactional
 public class RequestActionService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private final RequestActionRepository requestActionRepository;
     private final RequestRepository requestRepository;
     private final WorkflowStepRepository workflowStepRepository;
@@ -32,13 +35,15 @@ public class RequestActionService {
             WorkflowStepRepository workflowStepRepository,
             UserRepository userRepository,
             RequestAssignmentService requestAssignmentService,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.requestActionRepository = requestActionRepository;
         this.requestRepository = requestRepository;
         this.workflowStepRepository = workflowStepRepository;
         this.userRepository = userRepository;
         this.requestAssignmentService = requestAssignmentService;
         this.auditLogService = auditLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     public RequestActionResponse createAction(Long requestId, RequestActionCreateRequest createRequest) {
@@ -116,6 +121,42 @@ public class RequestActionService {
         }
         auditLogService.logEvent("REQUEST_ACTION", String.valueOf(savedAction.getId()), "REQUEST_ACTION_CREATED",
                 details);
+
+        // Publish Notification Event
+        if (savedAction.getActionType() == ActionType.APPROVE || savedAction.getActionType() == ActionType.AUTO_APPROVE
+                || savedAction.getActionType() == ActionType.REJECT) {
+            com.example.workflow_management_system.event.NotificationType type = null;
+            if (savedAction.getActionType() == ActionType.APPROVE
+                    || savedAction.getActionType() == ActionType.AUTO_APPROVE) {
+                type = com.example.workflow_management_system.event.NotificationType.REQUEST_APPROVED;
+            } else if (savedAction.getActionType() == ActionType.REJECT) {
+                type = com.example.workflow_management_system.event.NotificationType.REQUEST_REJECTED;
+            }
+
+            if (type != null) {
+                // Get Tenant Name logic if needed, or query simplified repo, or assume
+                // accessible.
+                // Request has tenantId, but not name directly loaded unless fetched.
+                // Request entity -> Tenant lazy loaded?
+                // request.getWorkflow().getTenant() might be available?
+                // Let's check existing code usage.
+                String tenantName = "System"; // Fallback
+                try {
+                    tenantName = request.getWorkflow().getTenant().getName();
+                } catch (Exception e) {
+                }
+
+                java.util.Map<String, Object> meta = new java.util.HashMap<>();
+                meta.put("requestId", request.getId());
+
+                com.example.workflow_management_system.event.NotificationEvent event = new com.example.workflow_management_system.event.NotificationEvent(
+                        type,
+                        request.getCreatedBy().getEmail(),
+                        tenantName,
+                        meta);
+                eventPublisher.publishEvent(event);
+            }
+        }
 
         return mapToResponse(savedAction);
     }

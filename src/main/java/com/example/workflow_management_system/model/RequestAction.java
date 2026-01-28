@@ -6,7 +6,11 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "request_actions")
+@Table(name = "request_actions", indexes = {
+        @Index(name = "idx_request_action_request", columnList = "request_id"),
+        @Index(name = "idx_request_action_tenant", columnList = "tenant_id"),
+        @Index(name = "idx_request_action_time", columnList = "action_time")
+})
 public class RequestAction {
 
     @Id

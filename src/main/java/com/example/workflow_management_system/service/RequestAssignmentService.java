@@ -18,16 +18,24 @@ import java.util.stream.Collectors;
 @Transactional
 public class RequestAssignmentService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private final RequestAssignmentRepository requestAssignmentRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final com.example.workflow_management_system.repository.TenantRepository tenantRepository;
 
     public RequestAssignmentService(RequestAssignmentRepository requestAssignmentRepository,
             UserRepository userRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            com.example.workflow_management_system.repository.TenantRepository tenantRepository,
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.requestAssignmentRepository = requestAssignmentRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
+        this.tenantRepository = tenantRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public void createAssignment(Request request, User assignee) {
@@ -45,16 +53,30 @@ public class RequestAssignmentService {
                 request.getTenantId());
         RequestAssignment saved = requestAssignmentRepository.save(assignment);
 
+        // Fetch Tenant Name for notification
+        String tenantName = "Workflow System";
+        try {
+            tenantName = tenantRepository.findById(request.getTenantId())
+                    .map(t -> t.getName()).orElse("Workflow System");
+        } catch (Exception e) {
+        }
+
+        java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+        metadata.put("requestId", saved.getRequest().getId());
+        metadata.put("assigneeName", assignee.getUsername());
+
+        com.example.workflow_management_system.event.NotificationEvent event = new com.example.workflow_management_system.event.NotificationEvent(
+                com.example.workflow_management_system.event.NotificationType.REQUEST_ASSIGNED,
+                assignee.getEmail(),
+                tenantName,
+                metadata);
+        eventPublisher.publishEvent(event);
+
         java.util.Map<String, Object> details = new java.util.HashMap<>();
         details.put("requestId", saved.getRequest().getId());
         details.put("assignedTo", saved.getAssignedTo().getUsername());
         details.put("status", saved.getStatus());
 
-        // System performs this usually via trigger, or user trigger?
-        // createAssignment is often called by system.
-        // logEvent(entityType, entityId, action, details) uses SecurityContext if
-        // available.
-        // But if called by RequestService (user action), it works.
         auditLogService.logEvent("REQUEST_ASSIGNMENT", String.valueOf(saved.getId()), "ASSIGNMENT_CREATED", details);
     }
 

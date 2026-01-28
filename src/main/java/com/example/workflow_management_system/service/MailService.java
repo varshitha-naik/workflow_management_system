@@ -77,11 +77,31 @@ public class MailService {
         }
     }
 
-    private String loadTemplate(String templateName) throws java.io.IOException {
+    public void sendHtmlMail(String to, String subject, String htmlBody) {
+        try {
+            jakarta.mail.internet.MimeMessage mimeMessage = emailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(
+                    mimeMessage, "utf-8");
+
+            helper.setText(htmlBody, true);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setFrom("noreply@workflowsystem.com");
+
+            emailSender.send(mimeMessage);
+        } catch (Exception e) {
+            logger.error("Failed to send HTML email to {}", to, e);
+        }
+    }
+
+    public String loadTemplate(String templateName) {
         org.springframework.core.io.Resource resource = resourceLoader
                 .getResource("classpath:templates/email/" + templateName);
         try (java.io.InputStream inputStream = resource.getInputStream()) {
             return new String(inputStream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            logger.error("Failed to load email template: {}", templateName, e);
+            return "";
         }
     }
 }

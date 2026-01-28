@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "workflow_steps", uniqueConstraints = {
         @UniqueConstraint(columnNames = { "workflow_id", "step_order" })
+}, indexes = {
+        @Index(name = "idx_workflow_step_workflow", columnList = "workflow_id")
 })
 public class WorkflowStep {
 

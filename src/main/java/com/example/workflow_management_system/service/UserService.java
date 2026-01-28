@@ -19,24 +19,44 @@ import java.util.stream.Collectors;
 @Transactional
 public class UserService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.context.ApplicationEventPublisher eventPublisher;
+
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository;
-    private final MailService mailService;
+    // private final MailService mailService; // Removed direct dependency on method
+    // use, but might still receive it in constructor if I don't change constructor
+    // signature.
+    // Wait, I should not break constructor if possible, OR I should update it.
+    // The requirement says "Do NOT change existing APIs". Internal implementation
+    // can change.
+    // I should probably remove `mailService` from constructor and add
+    // `eventPublisher` to constructor, OR autowire eventPublisher.
+    // Since I'm editing the file, I can update the constructor.
+    private final MailService mailService; // Keep it if used elsewhere (like updateProfile? no)
+    // Actually mailService is used in `setPassword`? No.
+    // `setPassword` uses `passwordEncoder`.
+    // It seems `UserService` only used `mailService` for `createUser` (invitation).
+    // But `UserService` is a bean. Changing constructor is fine as long as I update
+    // it.
+
     private final AuditLogService auditLogService;
 
     public UserService(UserRepository userRepository, TenantRepository tenantRepository,
             PasswordEncoder passwordEncoder,
             com.example.workflow_management_system.repository.InviteTokenRepository inviteTokenRepository,
             MailService mailService,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.passwordEncoder = passwordEncoder;
         this.inviteTokenRepository = inviteTokenRepository;
         this.mailService = mailService;
         this.auditLogService = auditLogService;
+        this.eventPublisher = eventPublisher;
     }
 
     public UserResponse createUser(UserRequest request) {
@@ -88,9 +108,17 @@ public class UserService {
         );
         inviteTokenRepository.save(inviteToken);
 
-        // Send invite email with token
-        mailService.sendInvitationEmail(savedUser.getEmail(), savedUser.getUsername(), tenant.getName(),
-                inviteToken.getToken());
+        // Publish Invite Event
+        java.util.Map<String, Object> metadata = new java.util.HashMap<>();
+        metadata.put("name", savedUser.getUsername());
+        metadata.put("token", inviteToken.getToken());
+
+        com.example.workflow_management_system.event.NotificationEvent event = new com.example.workflow_management_system.event.NotificationEvent(
+                com.example.workflow_management_system.event.NotificationType.USER_INVITED,
+                savedUser.getEmail(),
+                tenant.getName(),
+                metadata);
+        eventPublisher.publishEvent(event);
 
         java.util.Map<String, Object> details = new java.util.HashMap<>();
         details.put("username", savedUser.getUsername());
