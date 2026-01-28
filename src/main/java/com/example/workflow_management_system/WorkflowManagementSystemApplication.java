@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 @org.springframework.scheduling.annotation.EnableAsync
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.cache.annotation.EnableCaching
 public class WorkflowManagementSystemApplication {
 
     public static void main(String[] args) {
