@@ -54,15 +54,15 @@ public class SecurityConfig {
                 .cors(org.springframework.security.config.Customizer.withDefaults()) // Ensure CORS is handled if needed
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/", "/login", "/forgot-password", "/reset-password", "/set-password",
                                 "/dashboard", "/profile",
                                 "/users", "/tenants", "/workflows/**", "/workflow-steps",
                                 "/requests/**", "/my-requests", "/approvals/**", "/assignments/**")
                         .permitAll()
                         .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/users").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tenants").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/requests/{requestId}/actions")
+@RequestMapping("/api/v1/requests/{requestId}/actions")
 public class RequestActionController {
 
     private final RequestActionService requestActionService;
