@@ -115,9 +115,16 @@ public class RequestService {
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RequestResponse> getAllRequests(
+            RequestStatus status, Long workflowId, Long createdByUserId,
+            LocalDateTime fromDate, LocalDateTime toDate,
             org.springframework.data.domain.Pageable pageable) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
-        return requestRepository.findByTenantId(tenantId, pageable)
+
+        org.springframework.data.jpa.domain.Specification<Request> spec = com.example.workflow_management_system.specification.RequestSpecification
+                .filterRequests(
+                        tenantId, status, workflowId, createdByUserId, fromDate, toDate);
+
+        return requestRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
     }
 

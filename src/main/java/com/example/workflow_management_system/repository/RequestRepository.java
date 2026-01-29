@@ -8,20 +8,21 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RequestRepository extends JpaRepository<Request, Long> {
-    List<Request> findByTenantId(Long tenantId);
+public interface RequestRepository extends JpaRepository<Request, Long>,
+                org.springframework.data.jpa.repository.JpaSpecificationExecutor<Request> {
+        List<Request> findByTenantId(Long tenantId);
 
-    Optional<Request> findByIdAndTenantId(Long id, Long tenantId);
+        Optional<Request> findByIdAndTenantId(Long id, Long tenantId);
 
-    List<Request> findByTenantIdAndCreatedBy_Id(Long tenantId, Long userId);
+        List<Request> findByTenantIdAndCreatedBy_Id(Long tenantId, Long userId);
 
-    List<Request> findByTenantIdAndStatusAndCurrentStep_RequiredRole(Long tenantId,
-            com.example.workflow_management_system.model.RequestStatus status,
-            com.example.workflow_management_system.model.UserRole role);
+        List<Request> findByTenantIdAndStatusAndCurrentStep_RequiredRole(Long tenantId,
+                        com.example.workflow_management_system.model.RequestStatus status,
+                        com.example.workflow_management_system.model.UserRole role);
 
-    org.springframework.data.domain.Page<Request> findByTenantId(Long tenantId,
-            org.springframework.data.domain.Pageable pageable);
+        org.springframework.data.domain.Page<Request> findByTenantId(Long tenantId,
+                        org.springframework.data.domain.Pageable pageable);
 
-    org.springframework.data.domain.Page<Request> findByTenantIdAndCreatedBy_Id(Long tenantId, Long userId,
-            org.springframework.data.domain.Pageable pageable);
+        org.springframework.data.domain.Page<Request> findByTenantIdAndCreatedBy_Id(Long tenantId, Long userId,
+                        org.springframework.data.domain.Pageable pageable);
 }

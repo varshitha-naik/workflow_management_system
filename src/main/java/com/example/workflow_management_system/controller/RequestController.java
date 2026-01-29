@@ -31,8 +31,14 @@ public class RequestController {
 
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<RequestResponse>> getAllRequests(
+            @RequestParam(required = false) com.example.workflow_management_system.model.RequestStatus status,
+            @RequestParam(required = false) Long workflowId,
+            @RequestParam(required = false) Long createdByUserId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
-        org.springframework.data.domain.Page<RequestResponse> requests = requestService.getAllRequests(pageable);
+        org.springframework.data.domain.Page<RequestResponse> requests = requestService.getAllRequests(status,
+                workflowId, createdByUserId, fromDate, toDate, pageable);
         return ResponseEntity.ok(requests);
     }
 

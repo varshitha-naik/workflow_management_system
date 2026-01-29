@@ -23,8 +23,12 @@ public class AuditLogController {
     public ResponseEntity<org.springframework.data.domain.Page<AuditLog>> getAuditLogs(
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) String entityId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(auditLogService.getAuditLogs(entityType, entityId, pageable));
+        return ResponseEntity
+                .ok(auditLogService.getAuditLogs(entityType, entityId, action, fromDate, toDate, pageable));
     }
 
     @GetMapping("/recent")
