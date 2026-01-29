@@ -45,6 +45,12 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid username or password", request);
     }
 
+    @ExceptionHandler({ org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class })
+    public ResponseEntity<ErrorResponse> handleOptimisticLockException(Exception ex, HttpServletRequest request) {
+        return buildResponse(HttpStatus.CONFLICT, "The resource was modified by another user. Please retry.", request);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, HttpServletRequest request) {
         org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class).error("Unhandled exception occurred", ex);

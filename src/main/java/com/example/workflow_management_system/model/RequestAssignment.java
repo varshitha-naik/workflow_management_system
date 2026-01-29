@@ -40,6 +40,9 @@ public class RequestAssignment {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
