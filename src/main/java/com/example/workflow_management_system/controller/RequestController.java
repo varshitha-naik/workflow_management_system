@@ -10,8 +10,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/v1/requests")
+@Validated
 public class RequestController {
 
     private final RequestService requestService;
@@ -51,7 +55,7 @@ public class RequestController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<RequestResponse> getRequest(@PathVariable Long id) {
+    public ResponseEntity<RequestResponse> getRequest(@PathVariable @Min(1) Long id) {
         RequestResponse request = requestService.getRequest(id);
         return ResponseEntity.ok(request);
     }

@@ -9,8 +9,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/v1/workflows")
+@Validated
 public class WorkflowController {
 
     private final WorkflowService workflowService;
@@ -39,23 +43,23 @@ public class WorkflowController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<WorkflowResponse> getWorkflowById(@PathVariable Long id) {
+    public ResponseEntity<WorkflowResponse> getWorkflowById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(workflowService.getWorkflowById(id));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<WorkflowResponse> updateWorkflow(@PathVariable Long id,
+    public ResponseEntity<WorkflowResponse> updateWorkflow(@PathVariable @Min(1) Long id,
             @Valid @RequestBody WorkflowRequest request) {
         return ResponseEntity.ok(workflowService.updateWorkflow(id, request));
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<WorkflowResponse> updateStatus(@PathVariable Long id, @RequestParam boolean active) {
+    public ResponseEntity<WorkflowResponse> updateStatus(@PathVariable @Min(1) Long id, @RequestParam boolean active) {
         return ResponseEntity.ok(workflowService.updateStatus(id, active));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteWorkflow(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteWorkflow(@PathVariable @Min(1) Long id) {
         workflowService.deleteWorkflow(id);
         return ResponseEntity.ok().build();
     }

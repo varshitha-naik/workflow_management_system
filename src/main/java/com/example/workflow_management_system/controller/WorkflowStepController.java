@@ -9,8 +9,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/v1")
+@Validated
 public class WorkflowStepController {
 
     private final WorkflowStepService workflowStepService;
@@ -21,32 +25,32 @@ public class WorkflowStepController {
 
     @PostMapping("/workflows/{workflowId}/steps")
     public ResponseEntity<WorkflowStepResponse> createStep(
-            @PathVariable Long workflowId,
+            @PathVariable @Min(1) Long workflowId,
             @Valid @RequestBody WorkflowStepRequest request) {
         return ResponseEntity.ok(workflowStepService.createStep(workflowId, request));
     }
 
     @GetMapping("/workflows/{workflowId}/steps")
     public ResponseEntity<org.springframework.data.domain.Page<WorkflowStepResponse>> getStepsByWorkflow(
-            @PathVariable Long workflowId,
+            @PathVariable @Min(1) Long workflowId,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId, pageable));
     }
 
     @GetMapping("/workflow-steps/{id}")
-    public ResponseEntity<WorkflowStepResponse> getStepById(@PathVariable Long id) {
+    public ResponseEntity<WorkflowStepResponse> getStepById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(workflowStepService.getStepById(id));
     }
 
     @PutMapping("/workflow-steps/{id}")
     public ResponseEntity<WorkflowStepResponse> updateStep(
-            @PathVariable Long id,
+            @PathVariable @Min(1) Long id,
             @Valid @RequestBody WorkflowStepRequest request) {
         return ResponseEntity.ok(workflowStepService.updateStep(id, request));
     }
 
     @DeleteMapping("/workflow-steps/{id}")
-    public ResponseEntity<Void> deleteStep(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteStep(@PathVariable @Min(1) Long id) {
         workflowStepService.deleteStep(id);
         return ResponseEntity.ok().build();
     }

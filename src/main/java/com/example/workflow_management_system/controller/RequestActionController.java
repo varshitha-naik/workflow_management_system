@@ -10,8 +10,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/v1/requests/{requestId}/actions")
+@Validated
 public class RequestActionController {
 
     private final RequestActionService requestActionService;
@@ -23,14 +27,14 @@ public class RequestActionController {
     @PostMapping
     @com.example.workflow_management_system.aspect.Idempotent
     public ResponseEntity<RequestActionResponse> createAction(
-            @PathVariable Long requestId,
+            @PathVariable @Min(1) Long requestId,
             @Valid @RequestBody RequestActionCreateRequest createRequest) {
         RequestActionResponse action = requestActionService.createAction(requestId, createRequest);
         return new ResponseEntity<>(action, HttpStatus.CREATED);
     }
 
     @GetMapping
-    public ResponseEntity<List<RequestActionResponse>> getActions(@PathVariable Long requestId) {
+    public ResponseEntity<List<RequestActionResponse>> getActions(@PathVariable @Min(1) Long requestId) {
         List<RequestActionResponse> actions = requestActionService.getActions(requestId);
         return ResponseEntity.ok(actions);
     }

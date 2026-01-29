@@ -10,9 +10,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.example.workflow_management_system.security.UserPrincipal;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
 
 @RestController
 @RequestMapping("/api/v1/users")
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -50,13 +53,14 @@ public class UserController {
 
     @PutMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<UserResponse> updateUser(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
+    public ResponseEntity<UserResponse> updateUser(@PathVariable @Min(1) Long id,
+            @Valid @RequestBody UserRequest request) {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
     @GetMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
-    public ResponseEntity<UserResponse> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponse> getUserById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
@@ -68,7 +72,7 @@ public class UserController {
 
     @PatchMapping("/{id}/status")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<UserResponse> updateUserStatus(@PathVariable Long id,
+    public ResponseEntity<UserResponse> updateUserStatus(@PathVariable @Min(1) Long id,
             @Valid @RequestBody UserStatusRequest request) {
         return ResponseEntity.ok(userService.updateUserStatus(id, request.active()));
     }

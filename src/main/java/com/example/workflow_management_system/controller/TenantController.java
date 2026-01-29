@@ -12,8 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.Min;
+
 @RestController
 @RequestMapping("/api/v1/tenants")
+@Validated
 public class TenantController {
 
     private final TenantService tenantService;
@@ -40,20 +44,20 @@ public class TenantController {
 
     @GetMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
-    public ResponseEntity<TenantResponse> getTenantById(@PathVariable Long id) {
+    public ResponseEntity<TenantResponse> getTenantById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(tenantService.getTenantById(id));
     }
 
     @PutMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<TenantResponse> updateTenant(@PathVariable Long id,
+    public ResponseEntity<TenantResponse> updateTenant(@PathVariable @Min(1) Long id,
             @Valid @RequestBody TenantRequest request) {
         return ResponseEntity.ok(tenantService.updateTenant(id, request));
     }
 
     @DeleteMapping("/{id}")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<Void> deleteTenant(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteTenant(@PathVariable @Min(1) Long id) {
         tenantService.deleteTenant(id);
         return ResponseEntity.noContent().build();
     }
