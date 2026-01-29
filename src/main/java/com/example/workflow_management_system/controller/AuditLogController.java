@@ -27,6 +27,14 @@ public class AuditLogController {
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
             @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+
+        java.util.Set<String> allowedFields = java.util.Set.of("id", "timestamp", "entityType", "action");
+        org.springframework.data.domain.Sort defaultSort = org.springframework.data.domain.Sort
+                .by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp");
+
+        pageable = com.example.workflow_management_system.util.PaginationUtils.validateAndApplyDefaults(pageable,
+                allowedFields, defaultSort);
+
         return ResponseEntity
                 .ok(auditLogService.getAuditLogs(entityType, entityId, action, fromDate, toDate, pageable));
     }

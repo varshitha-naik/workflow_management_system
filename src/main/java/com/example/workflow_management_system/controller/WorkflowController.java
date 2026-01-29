@@ -27,6 +27,14 @@ public class WorkflowController {
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<WorkflowResponse>> getAllWorkflows(
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+
+        java.util.Set<String> allowedFields = java.util.Set.of("id", "name", "createdAt", "updatedAt", "status");
+        org.springframework.data.domain.Sort defaultSort = org.springframework.data.domain.Sort
+                .by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt");
+
+        pageable = com.example.workflow_management_system.util.PaginationUtils.validateAndApplyDefaults(pageable,
+                allowedFields, defaultSort);
+
         return ResponseEntity.ok(workflowService.getAllWorkflows(pageable));
     }
 
