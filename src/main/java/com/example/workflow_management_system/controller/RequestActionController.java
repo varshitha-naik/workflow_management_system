@@ -21,6 +21,7 @@ public class RequestActionController {
     }
 
     @PostMapping
+    @com.example.workflow_management_system.aspect.Idempotent
     public ResponseEntity<RequestActionResponse> createAction(
             @PathVariable Long requestId,
             @Valid @RequestBody RequestActionCreateRequest createRequest) {
