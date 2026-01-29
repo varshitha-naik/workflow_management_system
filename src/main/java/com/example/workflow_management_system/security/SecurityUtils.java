@@ -55,4 +55,14 @@ public class SecurityUtils {
                     "Access denied: Cross-tenant access is not allowed");
         }
     }
+
+    public static boolean hasRole(String... roles) {
+        String currentRole = getCurrentUser().getRole();
+        for (String role : roles) {
+            if (role.equals(currentRole)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

@@ -174,7 +174,7 @@ public class WorkflowService {
         }
     }
 
-    private WorkflowResponse mapToResponse(Workflow workflow) {
+    public WorkflowResponse mapToResponse(Workflow workflow) {
         return new WorkflowResponse(
                 workflow.getId(),
                 workflow.getName(),

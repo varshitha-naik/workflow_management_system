@@ -4,11 +4,6 @@ import com.example.workflow_management_system.dto.RequestCreateRequest;
 import com.example.workflow_management_system.dto.RequestResponse;
 import com.example.workflow_management_system.dto.RequestActionResponse;
 import com.example.workflow_management_system.model.*;
-import com.example.workflow_management_system.repository.RequestActionRepository;
-import com.example.workflow_management_system.repository.RequestRepository;
-import com.example.workflow_management_system.repository.UserRepository;
-import com.example.workflow_management_system.repository.WorkflowRepository;
-import com.example.workflow_management_system.repository.WorkflowStepRepository;
 import com.example.workflow_management_system.security.SecurityUtils;
 import com.example.workflow_management_system.security.UserPrincipal;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -17,11 +12,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import java.util.Map;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import com.example.workflow_management_system.repository.RequestRepository;
+import com.example.workflow_management_system.repository.WorkflowRepository;
+import com.example.workflow_management_system.repository.WorkflowStepRepository;
+import com.example.workflow_management_system.repository.UserRepository;
+import com.example.workflow_management_system.repository.RequestActionRepository;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -249,7 +250,7 @@ public class RequestService {
                 .collect(Collectors.toList());
     }
 
-    private RequestResponse mapToResponse(Request request) {
+    public RequestResponse mapToResponse(Request request) {
         Map<String, Object> payloadMap = null;
         try {
             if (request.getPayload() != null) {

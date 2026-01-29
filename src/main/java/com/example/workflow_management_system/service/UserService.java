@@ -246,7 +246,7 @@ public class UserService {
         return mapToResponse(updatedUser);
     }
 
-    private UserResponse mapToResponse(User user) {
+    public UserResponse mapToResponse(User user) {
         return new UserResponse(
                 user.getId(),
                 user.getUsername(),

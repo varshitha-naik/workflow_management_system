@@ -40,4 +40,26 @@ public class RequestSpecification {
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
     }
+
+    public static Specification<Request> search(String query) {
+        return (root, criteriaQuery, criteriaBuilder) -> {
+            if (query == null || query.isBlank()) {
+                return criteriaBuilder.conjunction();
+            }
+            String likePattern = "%" + query.toLowerCase() + "%";
+
+            Specification<Request> spec = (r, q, cb) -> cb.or(
+                    cb.like(cb.lower(r.get("payload")), likePattern),
+                    cb.like(cb.lower(r.get("workflow").get("name")), likePattern),
+                    cb.like(cb.lower(r.get("createdBy").get("username")), likePattern));
+
+            // If query is numeric, also search by ID
+            if (query.matches("\\d+")) {
+                Specification<Request> idSpec = (r, q, cb) -> cb.equal(r.get("id"), Long.valueOf(query));
+                spec = spec.or(idSpec);
+            }
+
+            return spec.toPredicate(root, criteriaQuery, criteriaBuilder);
+        };
+    }
 }
