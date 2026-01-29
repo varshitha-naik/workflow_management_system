@@ -24,13 +24,16 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
             com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler) {
+            com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler,
+            com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
+        this.rateLimitingFilter = rateLimitingFilter;
     }
 
     @Bean
@@ -64,7 +67,8 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 }
