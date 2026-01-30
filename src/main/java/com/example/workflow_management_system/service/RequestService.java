@@ -12,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Counter;
 import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +23,8 @@ import com.example.workflow_management_system.repository.WorkflowRepository;
 import com.example.workflow_management_system.repository.WorkflowStepRepository;
 import com.example.workflow_management_system.repository.UserRepository;
 import com.example.workflow_management_system.repository.RequestActionRepository;
+import com.example.workflow_management_system.service.AuditLogService;
+import com.example.workflow_management_system.service.RequestAssignmentService;
 
 import java.time.LocalDateTime;
 
@@ -36,6 +40,11 @@ public class RequestService {
     private final RequestAssignmentService requestAssignmentService;
     private final RequestActionRepository requestActionRepository;
     private final AuditLogService auditLogService;
+    private final MeterRegistry meterRegistry;
+
+    private final Counter requestCreatedCounter;
+    private final Counter requestApprovedCounter;
+    private final Counter requestRejectedCounter;
 
     public RequestService(RequestRepository requestRepository,
             WorkflowRepository workflowRepository,
@@ -44,7 +53,8 @@ public class RequestService {
             ObjectMapper objectMapper,
             RequestAssignmentService requestAssignmentService,
             RequestActionRepository requestActionRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            MeterRegistry meterRegistry) {
         this.requestRepository = requestRepository;
         this.workflowRepository = workflowRepository;
         this.workflowStepRepository = workflowStepRepository;
@@ -53,6 +63,11 @@ public class RequestService {
         this.requestAssignmentService = requestAssignmentService;
         this.requestActionRepository = requestActionRepository;
         this.auditLogService = auditLogService;
+        this.meterRegistry = meterRegistry;
+
+        this.requestCreatedCounter = meterRegistry.counter("requests_created_total");
+        this.requestApprovedCounter = meterRegistry.counter("requests_approved_total");
+        this.requestRejectedCounter = meterRegistry.counter("requests_rejected_total");
     }
 
     public RequestResponse createRequest(RequestCreateRequest createRequest) {
@@ -102,6 +117,8 @@ public class RequestService {
         details.put("workflowName", workflow.getName());
         details.put("payload", createRequest.payload());
         auditLogService.logEvent("REQUEST", String.valueOf(savedRequest.getId()), "REQUEST_CREATED", details);
+
+        requestCreatedCounter.increment();
 
         return mapToResponse(savedRequest);
     }
@@ -153,10 +170,12 @@ public class RequestService {
 
     public void approveRequest(Long requestId, String comment) {
         processAction(requestId, comment, ActionType.APPROVE);
+        requestApprovedCounter.increment();
     }
 
     public void rejectRequest(Long requestId, String comment) {
         processAction(requestId, comment, ActionType.REJECT);
+        requestRejectedCounter.increment();
     }
 
     private void processAction(Long requestId, String comment, ActionType actionType) {

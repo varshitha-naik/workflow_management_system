@@ -21,56 +21,65 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+        private final com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
+        private final com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-            com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler,
-            com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-        this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
-        this.rateLimitingFilter = rateLimitingFilter;
-    }
+        public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                        com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                        com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler,
+                        com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter) {
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+                this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+                this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
+                this.rateLimitingFilter = rateLimitingFilter;
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
-            throws Exception {
-        return authenticationConfiguration.getAuthenticationManager();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration)
+                        throws Exception {
+                return authenticationConfiguration.getAuthenticationManager();
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(org.springframework.security.config.Customizer.withDefaults()) // Ensure CORS is handled if needed
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/", "/login", "/forgot-password", "/reset-password", "/set-password",
-                                "/dashboard", "/profile",
-                                "/users", "/tenants", "/workflows/**", "/workflow-steps",
-                                "/requests/**", "/my-requests", "/approvals/**", "/assignments/**")
-                        .permitAll()
-                        .requestMatchers("/css/**", "/js/**", "/images/**", "/v3/api-docs/**", "/swagger-ui/**",
-                                "/swagger-ui.html")
-                        .permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/users").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/tenants").permitAll()
-                        .anyRequest().authenticated())
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
-        return http.build();
-    }
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .cors(org.springframework.security.config.Customizer.withDefaults()) // Ensure CORS is
+                                                                                                     // handled if
+                                                                                                     // needed
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/api/v1/auth/**").permitAll()
+                                                .requestMatchers("/", "/login", "/forgot-password", "/reset-password",
+                                                                "/set-password",
+                                                                "/dashboard", "/profile",
+                                                                "/users", "/tenants", "/workflows/**",
+                                                                "/workflow-steps",
+                                                                "/requests/**", "/my-requests", "/approvals/**",
+                                                                "/assignments/**")
+                                                .permitAll()
+                                                .requestMatchers("/css/**", "/js/**", "/images/**", "/v3/api-docs/**",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html")
+                                                .permitAll()
+                                                .requestMatchers("/actuator/health").permitAll()
+                                                .requestMatchers("/actuator/**").hasRole("SUPER_ADMIN")
+                                                .requestMatchers(HttpMethod.POST, "/api/v1/users").authenticated()
+                                                .requestMatchers(HttpMethod.POST, "/api/v1/tenants").permitAll()
+                                                .anyRequest().authenticated())
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                                                .accessDeniedHandler(jwtAccessDeniedHandler))
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                                .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
+                return http.build();
+        }
 }
