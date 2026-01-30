@@ -68,6 +68,19 @@ public class AuditLogService {
     }
 
     @Transactional(readOnly = true)
+    public List<AuditLog> getAuditLogsForExport(
+            String entityType, String entityId, String action,
+            java.time.LocalDateTime fromDate, java.time.LocalDateTime toDate) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+
+        org.springframework.data.jpa.domain.Specification<AuditLog> spec = com.example.workflow_management_system.specification.AuditLogSpecification
+                .filterAuditLogs(
+                        tenantId, entityType, entityId, action, fromDate, toDate);
+
+        return auditLogRepository.findAll(spec);
+    }
+
+    @Transactional(readOnly = true)
     public List<AuditLog> getRecentAuditLogs() {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         return auditLogRepository.findTop20ByTenantIdOrderByTimestampDesc(tenantId);

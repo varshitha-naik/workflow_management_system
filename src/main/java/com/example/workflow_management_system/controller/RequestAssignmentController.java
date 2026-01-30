@@ -14,9 +14,41 @@ import java.util.List;
 public class RequestAssignmentController {
 
     private final RequestAssignmentService requestAssignmentService;
+    private final com.example.workflow_management_system.service.ExportService exportService;
 
-    public RequestAssignmentController(RequestAssignmentService requestAssignmentService) {
+    public RequestAssignmentController(RequestAssignmentService requestAssignmentService,
+            com.example.workflow_management_system.service.ExportService exportService) {
         this.requestAssignmentService = requestAssignmentService;
+        this.exportService = exportService;
+    }
+
+    @GetMapping("/assignments/export")
+    public void exportAssignments(
+            @RequestParam(defaultValue = "csv") String format,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        com.example.workflow_management_system.service.ExportService.ExportFormat exportFormat;
+        try {
+            exportFormat = com.example.workflow_management_system.service.ExportService.ExportFormat
+                    .valueOf(format.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            response.sendError(org.springframework.http.HttpStatus.BAD_REQUEST.value(),
+                    "Invalid format. Supported: csv, xlsx");
+            return;
+        }
+
+        response.setContentType(
+                exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                        ? "text/csv"
+                        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String extension = exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                ? "csv"
+                : "xlsx";
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"assignments_" + java.time.LocalDateTime.now() + "." + extension + "\"");
+
+        java.util.List<RequestAssignmentResponse> assignments = requestAssignmentService.getMyAssignmentsForExport();
+        exportService.exportAssignments(assignments, exportFormat, response.getOutputStream());
     }
 
     @GetMapping("/assignments/my")

@@ -15,9 +15,48 @@ import java.util.List;
 public class AuditLogController {
 
     private final AuditLogService auditLogService;
+    private final com.example.workflow_management_system.service.ExportService exportService;
 
-    public AuditLogController(AuditLogService auditLogService) {
+    public AuditLogController(AuditLogService auditLogService,
+            com.example.workflow_management_system.service.ExportService exportService) {
         this.auditLogService = auditLogService;
+        this.exportService = exportService;
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    public void exportAuditLogs(
+            @RequestParam(required = false) String entityType,
+            @RequestParam(required = false) String entityId,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
+            @RequestParam(defaultValue = "csv") String format,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        com.example.workflow_management_system.service.ExportService.ExportFormat exportFormat;
+        try {
+            exportFormat = com.example.workflow_management_system.service.ExportService.ExportFormat
+                    .valueOf(format.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            response.sendError(org.springframework.http.HttpStatus.BAD_REQUEST.value(),
+                    "Invalid format. Supported: csv, xlsx");
+            return;
+        }
+
+        response.setContentType(
+                exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                        ? "text/csv"
+                        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String extension = exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                ? "csv"
+                : "xlsx";
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"audit_logs_" + java.time.LocalDateTime.now() + "." + extension + "\"");
+
+        java.util.List<AuditLog> logs = auditLogService.getAuditLogsForExport(entityType, entityId, action, fromDate,
+                toDate);
+        exportService.exportAuditLogs(logs, exportFormat, response.getOutputStream());
     }
 
     @GetMapping

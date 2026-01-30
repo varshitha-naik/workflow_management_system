@@ -2,7 +2,6 @@ package com.example.workflow_management_system.controller;
 
 import com.example.workflow_management_system.dto.RequestCreateRequest;
 import com.example.workflow_management_system.dto.RequestResponse;
-import com.example.workflow_management_system.dto.RequestResponse;
 import com.example.workflow_management_system.service.RequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,11 +23,59 @@ public class RequestController {
 
     private final RequestService requestService;
     private final com.example.workflow_management_system.service.RequestAssignmentService requestAssignmentService;
+    private final com.example.workflow_management_system.service.ExportService exportService;
 
     public RequestController(RequestService requestService,
-            com.example.workflow_management_system.service.RequestAssignmentService requestAssignmentService) {
+            com.example.workflow_management_system.service.RequestAssignmentService requestAssignmentService,
+            com.example.workflow_management_system.service.ExportService exportService) {
         this.requestService = requestService;
         this.requestAssignmentService = requestAssignmentService;
+        this.exportService = exportService;
+    }
+
+    @GetMapping("/export")
+    public void exportRequests(
+            @RequestParam(required = false) com.example.workflow_management_system.model.RequestStatus status,
+            @RequestParam(required = false) Long workflowId,
+            @RequestParam(required = false) Long createdByUserId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
+            @RequestParam(defaultValue = "csv") String format,
+            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
+
+        com.example.workflow_management_system.service.ExportService.ExportFormat exportFormat;
+        try {
+            exportFormat = com.example.workflow_management_system.service.ExportService.ExportFormat
+                    .valueOf(format.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpStatus.BAD_REQUEST.value(), "Invalid format. Supported: csv, xlsx");
+            return;
+        }
+
+        response.setContentType(
+                exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                        ? "text/csv"
+                        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String extension = exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                ? "csv"
+                : "xlsx";
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"requests_" + java.time.LocalDateTime.now() + "." + extension + "\"");
+
+        java.util.List<RequestResponse> requests;
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+
+        if (currentUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+            requests = requestService.getAllRequestsForExport(status, workflowId, createdByUserId, fromDate, toDate);
+        } else {
+            // Users export their own requests with applied filters
+            requests = requestService.getAllRequestsForExport(status, workflowId, currentUser.getId(), fromDate,
+                    toDate);
+        }
+
+        exportService.exportRequests(requests, exportFormat, response.getOutputStream());
     }
 
     @PostMapping

@@ -158,6 +158,17 @@ public class RequestAssignmentService {
     }
 
     @Transactional(readOnly = true)
+    public List<RequestAssignmentResponse> getMyAssignmentsForExport() {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        Long userId = SecurityUtils.getCurrentUser().getId();
+
+        return requestAssignmentRepository
+                .findByAssignedTo_IdAndTenantIdOrderByAssignedAtDesc(userId, tenantId).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
     public List<RequestAssignmentResponse> getAssignmentsByRequest(Long requestId) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
         return requestAssignmentRepository.findByRequestIdAndTenantIdOrderByAssignedAtAsc(requestId, tenantId).stream()

@@ -23,8 +23,6 @@ import com.example.workflow_management_system.repository.WorkflowRepository;
 import com.example.workflow_management_system.repository.WorkflowStepRepository;
 import com.example.workflow_management_system.repository.UserRepository;
 import com.example.workflow_management_system.repository.RequestActionRepository;
-import com.example.workflow_management_system.service.AuditLogService;
-import com.example.workflow_management_system.service.RequestAssignmentService;
 
 import java.time.LocalDateTime;
 
@@ -144,6 +142,21 @@ public class RequestService {
 
         return requestRepository.findAll(spec, pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RequestResponse> getAllRequestsForExport(
+            RequestStatus status, Long workflowId, Long createdByUserId,
+            LocalDateTime fromDate, LocalDateTime toDate) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+
+        org.springframework.data.jpa.domain.Specification<Request> spec = com.example.workflow_management_system.specification.RequestSpecification
+                .filterRequests(
+                        tenantId, status, workflowId, createdByUserId, fromDate, toDate);
+
+        return requestRepository.findAll(spec).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
