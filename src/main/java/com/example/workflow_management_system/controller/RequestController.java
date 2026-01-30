@@ -2,7 +2,10 @@ package com.example.workflow_management_system.controller;
 
 import com.example.workflow_management_system.dto.RequestCreateRequest;
 import com.example.workflow_management_system.dto.RequestResponse;
+import com.example.workflow_management_system.dto.RequestResponse;
 import com.example.workflow_management_system.service.RequestService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +19,7 @@ import jakarta.validation.constraints.Min;
 @RestController
 @RequestMapping("/api/v1/requests")
 @Validated
+@Tag(name = "Requests", description = "Request management endpoints")
 public class RequestController {
 
     private final RequestService requestService;
@@ -28,6 +32,7 @@ public class RequestController {
     }
 
     @PostMapping
+    @Operation(summary = "Create Request", description = "Creates a new request given a workflow ID and payload.")
     public ResponseEntity<RequestResponse> createRequest(@RequestBody RequestCreateRequest request) {
         RequestResponse createdRequest = requestService.createRequest(request);
         return new ResponseEntity<>(createdRequest, HttpStatus.CREATED);
@@ -55,6 +60,7 @@ public class RequestController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Get Request Details", description = "Retrieves a request by its ID.")
     public ResponseEntity<RequestResponse> getRequest(@PathVariable @Min(1) Long id) {
         RequestResponse request = requestService.getRequest(id);
         return ResponseEntity.ok(request);

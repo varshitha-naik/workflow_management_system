@@ -9,12 +9,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
 @RequestMapping("/api/v1")
 @Validated
+@Tag(name = "Workflow Steps", description = "Workflow Step management endpoints")
 public class WorkflowStepController {
 
     private final WorkflowStepService workflowStepService;

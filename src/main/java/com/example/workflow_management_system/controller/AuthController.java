@@ -3,6 +3,8 @@ package com.example.workflow_management_system.controller;
 import com.example.workflow_management_system.dto.AuthResponse;
 import com.example.workflow_management_system.dto.LoginRequest;
 import com.example.workflow_management_system.security.JwtTokenProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@Tag(name = "Auth", description = "Authentication endpoints")
 public class AuthController {
 
         private final AuthenticationManager authenticationManager;
@@ -36,6 +39,7 @@ public class AuthController {
         }
 
         @PostMapping("/login")
+        @Operation(summary = "User Login", description = "Authenticates a user and returns a JWT token. Returns 401 if credentials are invalid.")
         public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
                 Authentication authentication = authenticationManager
                                 .authenticate(new UsernamePasswordAuthenticationToken(

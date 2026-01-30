@@ -5,10 +5,12 @@ import com.example.workflow_management_system.service.RequestAssignmentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
+@Tag(name = "Assignments", description = "Request Assignment endpoints")
 public class RequestAssignmentController {
 
     private final RequestAssignmentService requestAssignmentService;

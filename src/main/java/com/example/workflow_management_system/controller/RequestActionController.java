@@ -10,12 +10,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
 @RequestMapping("/api/v1/requests/{requestId}/actions")
 @Validated
+@Tag(name = "Request Actions", description = "Request Action endpoints (Approvals/Rejections)")
 public class RequestActionController {
 
     private final RequestActionService requestActionService;

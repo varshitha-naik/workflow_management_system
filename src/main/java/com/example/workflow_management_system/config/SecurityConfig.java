@@ -60,7 +60,9 @@ public class SecurityConfig {
                                 "/users", "/tenants", "/workflows/**", "/workflow-steps",
                                 "/requests/**", "/my-requests", "/approvals/**", "/assignments/**")
                         .permitAll()
-                        .requestMatchers("/css/**", "/js/**", "/images/**").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/images/**", "/v3/api-docs/**", "/swagger-ui/**",
+                                "/swagger-ui.html")
+                        .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/users").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/tenants").permitAll()
                         .anyRequest().authenticated())
