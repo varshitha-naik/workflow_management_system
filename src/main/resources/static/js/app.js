@@ -190,6 +190,24 @@ function hideMessage(id) {
     if (el) el.classList.add('hidden');
 }
 
+// Global click listener to close dropdowns
+document.addEventListener('click', (e) => {
+    const isDropdown = e.target.closest('.dropdown');
+    document.querySelectorAll('.dropdown.active').forEach(d => {
+        if (d !== isDropdown) d.classList.remove('active');
+    });
+});
+
+function toggleDropdown(e) {
+    e.stopPropagation();
+    const dropdown = e.currentTarget.closest('.dropdown');
+    // Close others
+    document.querySelectorAll('.dropdown.active').forEach(d => {
+        if (d !== dropdown) d.classList.remove('active');
+    });
+    dropdown.classList.toggle('active');
+}
+
 function renderTable(containerId, columns, data, actions = []) {
     const container = document.getElementById(containerId);
     if (!container) return;
@@ -200,24 +218,56 @@ function renderTable(containerId, columns, data, actions = []) {
     }
 
     let html = '<div class="table-container"><table><thead><tr>';
-    columns.forEach(col => html += `<th>${col.label}</th>`);
-    if (actions.length > 0) html += '<th>Actions</th>';
+    columns.forEach(col => {
+        const alignClass = col.align ? `text-${col.align}` : 'text-left';
+        html += `<th class="${alignClass}">${col.label}</th>`;
+    });
+    if (actions.length > 0) html += '<th class="text-right">Actions</th>';
     html += '</tr></thead><tbody>';
 
     data.forEach(row => {
-        html += '<tr>';
+        // Row is clickable for Design view
+        html += `<tr onclick="window.location.href='/workflows/view?id=${row.id}'" style="cursor: pointer;">`;
         columns.forEach(col => {
             let val = row[col.key];
             if (col.format) val = col.format(val, row);
-            html += `<td>${val === undefined || val === null ? '-' : val}</td>`;
+            const alignClass = col.align ? `text-${col.align}` : 'text-left';
+            html += `<td class="${alignClass}">${val === undefined || val === null ? '-' : val}</td>`;
         });
 
         if (actions.length > 0) {
-            html += '<td class="flex gap-2">';
+            html += '<td class="text-right">';
+            // Stop propagation on dropdown to prevent row click
+            html += `
+                <div class="dropdown" onclick="event.stopPropagation()">
+                    <button class="dropdown-btn" onclick="toggleDropdown(event)">
+                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                        </svg>
+                    </button>
+                    <div class="dropdown-menu">
+            `;
+
             actions.forEach(action => {
                 if (action.condition && !action.condition(row)) return;
-                html += `<button class="btn btn-sm ${action.class || ''}" onclick="${action.handler}(${row.id})">${action.label}</button>`;
+                // Add icons based on common labels just for polish, strictly optional but nice
+                let icon = '';
+                if (action.label === 'Delete') icon = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>';
+                else if (action.label === 'Design') icon = '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>';
+
+                const isDanger = action.class && action.class.includes('danger');
+
+                html += `
+                    <button class="dropdown-item ${isDanger ? 'danger' : ''}" onclick="${action.handler}(${row.id})">
+                        ${icon} ${action.label}
+                    </button>
+                `;
             });
+
+            html += `
+                    </div>
+                </div>
+            `;
             html += '</td>';
         }
         html += '</tr>';
