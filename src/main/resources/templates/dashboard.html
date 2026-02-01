@@ -57,25 +57,55 @@
                     </a>
                 </div>
 
-                <!-- Recent Activity -->
-                <h2 class="mb-4 mt-8">Recent Activity</h2>
-                <div class="card p-0 overflow-hidden">
-                    <div class="table-container">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="text-left border-b border-border">
-                                    <th class="p-4 text-muted font-medium text-sm">User</th>
-                                    <th class="p-4 text-muted font-medium text-sm">Action</th>
-                                    <th class="p-4 text-muted font-medium text-sm">Entity</th>
-                                    <th class="p-4 text-muted font-medium text-sm text-right">Time</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activityTableBody">
-                                <tr>
-                                    <td colspan="4" class="p-4 text-center text-muted">Loading activity...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <!-- Recent Activity Section -->
+                <div id="recentActivitySection" class="mt-8">
+                    <div class="card p-4 flex justify-between items-center mb-0">
+                        <div>
+                            <h3 class="m-0 text-white" style="font-size: 1.1rem;">Recent Activity</h3>
+                            <p class="text-muted text-sm m-0 mt-1">Last 24 hours</p>
+                        </div>
+                        <button id="viewActivityBtn" class="btn btn-outline btn-sm">View activity</button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Modal -->
+                <div id="activityModal" class="modal-overlay">
+                    <div class="modal-content" style="max-width: 800px;">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="m-0 text-white text-xl">Recent Activity</h2>
+                            <button id="closeActivityModalBtn"
+                                class="text-muted hover:text-white bg-transparent border-0 cursor-pointer p-1">
+                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="card p-0 overflow-hidden border-0">
+                            <div class="table-container max-h-[60vh] overflow-y-auto">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="text-left border-b border-border">
+                                            <th class="p-4 text-muted font-medium text-sm sticky top-0 bg-surface z-10">
+                                                User</th>
+                                            <th class="p-4 text-muted font-medium text-sm sticky top-0 bg-surface z-10">
+                                                Action</th>
+                                            <th class="p-4 text-muted font-medium text-sm sticky top-0 bg-surface z-10">
+                                                Entity</th>
+                                            <th
+                                                class="p-4 text-muted font-medium text-sm text-right sticky top-0 bg-surface z-10">
+                                                Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="activityTableBody">
+                                        <tr>
+                                            <td colspan="4" class="p-4 text-center text-muted">Loading activity...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -214,14 +244,60 @@
             }
 
             // --- Recent Activity Logic ---
+            const recentActivitySection = document.getElementById('recentActivitySection');
+
             if (hasRole('SUPER_ADMIN') || hasRole('ADMIN')) {
+                // Modal Logic
+                const modal = document.getElementById('activityModal');
+                const viewBtn = document.getElementById('viewActivityBtn');
+                const closeBtn = document.getElementById('closeActivityModalBtn');
+
+                const openModal = () => {
+                    modal.classList.add('open');
+                    document.body.style.overflow = 'hidden';
+                };
+
+                const closeModal = () => {
+                    modal.classList.remove('open');
+                    document.body.style.overflow = '';
+                };
+
+                if (viewBtn) viewBtn.addEventListener('click', openModal);
+                if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+                // Close on outside click
+                if (modal) {
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) closeModal();
+                    });
+                }
+
+                // Close on ESC
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && modal && modal.classList.contains('open')) {
+                        closeModal();
+                    }
+                });
+
                 try {
                     const tbody = document.getElementById('activityTableBody');
                     const logsResp = await apiCall('/audit-logs?page=0&size=5&sort=timestamp,desc');
                     const logs = logsResp.content || [];
 
                     if (logs.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-muted">No recent activity</td></tr>';
+                        const tableContainer = document.querySelector('#activityModal .table-container');
+                        if (tableContainer) {
+                            tableContainer.innerHTML = `
+                                <div class="flex flex-col items-center justify-center py-12">
+                                    <div class="p-3 rounded-full bg-surface-hover mb-3">
+                                        <svg width="24" height="24" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <p class="text-muted text-sm font-medium">No recent activity in the last 24 hours</p>
+                                </div>
+                             `;
+                        }
                     } else {
                         const timeAgo = (dateStr) => {
                             const date = new Date(dateStr);
@@ -243,7 +319,7 @@
 
                         tbody.innerHTML = logs.map(log => `
                             <tr class="border-b border-border last:border-0 hover:bg-surface-hover transition-colors">
-                                <td class="p-4 text-sm font-medium text-white">
+                                <td class="py-3 px-4 text-sm font-medium text-white">
                                     <div class="flex items-center gap-2">
                                         <div class="w-6 h-6 rounded-full bg-primary/20 bg-opacity-20 flex items-center justify-content-center text-xs text-primary font-bold uppercase">
                                             ${(log.performedBy || 'sys').charAt(0)}
@@ -251,13 +327,13 @@
                                         ${log.performedBy || 'System'}
                                     </div>
                                 </td>
-                                <td class="p-4 text-sm">
+                                <td class="py-3 px-4 text-sm">
                                     <span class="badge ${log.action === 'CREATE' ? 'badge-blue' : log.action === 'UPDATE' ? 'badge-warning' : 'badge-success'}">
                                         ${log.action}
                                     </span>
                                 </td>
-                                <td class="p-4 text-sm text-dim">${log.entityType}</td>
-                                <td class="p-4 text-sm text-right text-muted">${timeAgo(log.timestamp)}</td>
+                                <td class="py-3 px-4 text-sm text-dim">${log.entityType}</td>
+                                <td class="py-3 px-4 text-sm text-right text-muted">${timeAgo(log.timestamp)}</td>
                             </tr>
                         `).join('');
                     }
@@ -267,13 +343,8 @@
                         '<tr><td colspan="4" class="p-4 text-center text-error">Failed to load activity</td></tr>';
                 }
             } else {
-                // If standard user, maybe hide the section? Requirement implies only ADMINs usually see audit logs.
-                // But let's just leave it empty or hide it.
-                // The API is restricted, so we shouldn't call it.
-                // Currently only Role Filter was implemented for users.
-                // Let's hide the section header and container if not admin.
-                document.querySelector('h2.mt-8').style.display = 'none';
-                document.querySelector('.card.p-0.overflow-hidden').style.display = 'none';
+                // Hide section for non-admins
+                if (recentActivitySection) recentActivitySection.style.display = 'none';
             }
         });
     </script>
