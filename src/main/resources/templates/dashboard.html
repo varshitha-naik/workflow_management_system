@@ -26,10 +26,10 @@
                 <!-- Stats Grid -->
                 <div id="statsGrid" class="grid grid-4 mb-6">
                     <!-- Default local stat -->
-                    <div class="card p-4">
-                        <div class="text-muted text-sm">System Status</div>
-                        <div class="text-2xl font-bold text-success mt-2">Operational</div>
-                    </div>
+                    <div class="card p-4 skeleton h-24"></div>
+                    <div class="card p-4 skeleton h-24"></div>
+                    <div class="card p-4 skeleton h-24"></div>
+                    <div class="card p-4 skeleton h-24"></div>
                 </div>
 
                 <!-- Action Modules -->
@@ -71,12 +71,63 @@
             const statsGrid = document.getElementById('statsGrid');
             const modulesGrid = document.getElementById('modulesGrid');
 
-            // --- SUPER_ADMIN Logic ---
-            if (hasRole('SUPER_ADMIN')) {
-                // Modules
-                let superAdminModules = '';
+            // --- Stats Logic ---
+            try {
+                // Helper to normalize Page/List responses
+                const toArray = (resp) => {
+                    if (Array.isArray(resp)) return resp;
+                    if (resp && Array.isArray(resp.content)) return resp.content;
+                    return [];
+                };
 
-                // Only Platform Owner manages tenants
+                const canViewUsers = hasRole('SUPER_ADMIN') || hasRole('ADMIN');
+
+                const [workflowsResp, requestsResp, usersResp] = await Promise.all([
+                    apiCall('/workflows').catch(() => []),
+                    apiCall('/requests').catch(() => []),
+                    canViewUsers ? apiCall('/users').catch(() => []) : Promise.resolve([])
+                ]);
+
+                const workflows = toArray(workflowsResp);
+                const requests = toArray(requestsResp);
+                const users = toArray(usersResp);
+
+                const activeWorkflows = workflows.filter(w => w.active).length;
+                const pendingRequests = requests.filter(r => r.status === 'PENDING').length;
+
+                // Compare YYYY-MM-DD
+                const todayStr = new Date().toISOString().split('T')[0];
+                const todaysActivity = requests.filter(r => (r.createdAt || '').startsWith(todayStr)).length;
+
+                const totalUsers = canViewUsers ? users.length : '-';
+
+                statsGrid.innerHTML = `
+                    <div class="card p-4">
+                        <div class="text-muted text-sm">Total Users</div>
+                        <div class="text-2xl font-bold text-white mt-2">${totalUsers}</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-muted text-sm">Active Workflows</div>
+                        <div class="text-2xl font-bold text-success mt-2">${activeWorkflows}</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-muted text-sm">Pending Requests</div>
+                        <div class="text-2xl font-bold text-warning mt-2">${pendingRequests}</div>
+                    </div>
+                    <div class="card p-4">
+                        <div class="text-muted text-sm">Today’s Activity</div>
+                        <div class="text-2xl font-bold text-accent mt-2">${todaysActivity}</div>
+                    </div>
+                `;
+
+            } catch (e) {
+                console.error("Stats load failed", e);
+                statsGrid.innerHTML = '<div class="text-error col-span-4">Failed to load system stats.</div>';
+            }
+
+            // --- Action Modules Logic ---
+            if (hasRole('SUPER_ADMIN')) {
+                let superAdminModules = '';
                 if (ctx.tenantName === 'WorkflowSys') {
                     superAdminModules += `
                          <a href="/tenants" class="card block hover:border-primary">
@@ -84,53 +135,14 @@
                              <p class="text-sm">Create and remove system tenants</p>
                          </a>`;
                 }
-
                 superAdminModules += `
                      <a href="/users" class="card block hover:border-primary">
                          <h3 class="text-primary mb-1">Users</h3>
                          <p class="text-sm">Administer users for this tenant</p>
                      </a>
                  `;
-
                 modulesGrid.innerHTML += superAdminModules;
-
-                // Stats
-                try {
-                    const promises = [apiCall('/users')];
-                    // Only fetch tenants if platform owner
-                    const isPlatformOwner = ctx.tenantName === 'WorkflowSys';
-                    if (isPlatformOwner) {
-                        promises.push(apiCall('/tenants'));
-                    }
-
-                    const results = await Promise.all(promises);
-                    const users = results[0];
-                    const tenants = isPlatformOwner ? results[1] : null;
-
-                    if (isPlatformOwner && tenants) {
-                        statsGrid.innerHTML += `
-                            <div class="card p-4">
-                                <div class="text-muted text-sm">Active Tenants</div>
-                                <div class="text-3xl font-bold mt-2 text-white">${tenants.length}</div>
-                            </div>
-                         `;
-                    }
-
-                    if (users) {
-                        // Filter count for non-platform owners just in case API returns all
-                        const count = isPlatformOwner ? users.length : users.filter(u => u.tenantId === ctx.tenantId).length;
-                        statsGrid.innerHTML += `
-                            <div class="card p-4">
-                                <div class="text-muted text-sm">Total Users</div>
-                                <div class="text-3xl font-bold mt-2 text-white">${count}</div>
-                            </div>
-                         `;
-                    }
-                } catch (e) { console.error(e); }
-            }
-
-            // --- ADMIN Logic ---
-            else if (hasRole('ADMIN')) {
+            } else if (hasRole('ADMIN')) {
                 modulesGrid.innerHTML += `
                      <a href="/users" class="card block hover:border-primary">
                          <h3 class="text-primary mb-1">Team Members</h3>
