@@ -87,6 +87,13 @@ public class UserService {
             }
         }
 
+        if (requestRole == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+            if (userRepository.existsByTenant_IdAndRole(tenantId,
+                    com.example.workflow_management_system.model.UserRole.SUPER_ADMIN)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Tenant already has a SUPER_ADMIN");
+            }
+        }
+
         Tenant tenant = tenantRepository.findById(tenantId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tenant not found"));
 
@@ -162,6 +169,14 @@ public class UserService {
             }
         }
 
+        if (request.role() == com.example.workflow_management_system.model.UserRole.SUPER_ADMIN
+                && targetRole != com.example.workflow_management_system.model.UserRole.SUPER_ADMIN) {
+            if (userRepository.existsByTenant_IdAndRole(user.getTenant().getId(),
+                    com.example.workflow_management_system.model.UserRole.SUPER_ADMIN)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Tenant already has a SUPER_ADMIN");
+            }
+        }
+
         // Check uniqueness logic if username/email changed
         if (!user.getUsername().equals(request.username()) && userRepository.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already exists");
@@ -198,14 +213,27 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<UserResponse> getUsersByTenant(Long tenantId,
+            com.example.workflow_management_system.model.UserRole role,
             org.springframework.data.domain.Pageable pageable) {
         com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(tenantId);
 
         if (!tenantRepository.existsById(tenantId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
+
+        if (role != null) {
+            return userRepository.findByTenant_IdAndRole(tenantId, role, pageable)
+                    .map(this::mapToResponse);
+        }
+
         return userRepository.findByTenant_Id(tenantId, pageable)
                 .map(this::mapToResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<UserResponse> getUsersByTenant(Long tenantId,
+            org.springframework.data.domain.Pageable pageable) {
+        return getUsersByTenant(tenantId, null, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -213,17 +241,7 @@ public class UserService {
         return getUsersByTenant(tenantId, org.springframework.data.domain.Pageable.unpaged()).getContent();
     }
 
-    @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<UserResponse> getAllUsers(
-            org.springframework.data.domain.Pageable pageable) {
-        return userRepository.findAll(pageable)
-                .map(this::mapToResponse);
-    }
-
-    @Transactional(readOnly = true)
-    public List<UserResponse> getAllUsers() {
-        return getAllUsers(org.springframework.data.domain.Pageable.unpaged()).getContent();
-    }
+    // Global getAllUsers removed for tenant isolation compatibility
 
     public UserResponse updateUserStatus(Long id, boolean active) {
         User user = userRepository.findById(id)

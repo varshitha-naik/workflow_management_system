@@ -28,11 +28,13 @@
                     </button>
                 </div>
 
-                <!-- Filters -->
-                <div id="filterContainer" class="card p-4 mb-6 hidden flex items-center gap-4">
-                    <label class="font-bold text-sm">Tenant Scope:</label>
-                    <select id="tenantFilter" class="form-control w-64">
-                        <option value="">All Tenants</option>
+                <!-- Role Filter -->
+                <div id="filterContainer" class="card p-4 mb-6 flex items-center gap-4">
+                    <label class="font-bold text-sm">Role Filter:</label>
+                    <select id="roleFilter" class="form-control w-64">
+                        <option value="">All Users</option>
+                        <option value="ADMIN">Admins</option>
+                        <option value="USER">Users</option>
                     </select>
                 </div>
 
@@ -101,31 +103,16 @@
             const ctx = requireAuth(['SUPER_ADMIN', 'ADMIN']);
             if (!ctx) return;
 
-            if (hasRole('SUPER_ADMIN')) {
-                document.getElementById('filterContainer').classList.remove('hidden');
-                await loadTenants();
-            }
             loadUsers();
 
-            document.getElementById('tenantFilter').addEventListener('change', (e) => {
+            document.getElementById('roleFilter').addEventListener('change', (e) => {
                 loadUsers(e.target.value);
             });
 
             document.getElementById('createUserForm').addEventListener('submit', handleSave);
         }
 
-        async function loadTenants() {
-            try {
-                const tenants = await apiCall('/tenants');
-                const filter = document.getElementById('tenantFilter');
-                filter.innerHTML = '<option value="">All Tenants</option>';
-                tenants.forEach(t => filter.add(new Option(t.name, t.id)));
-            } catch (e) {
-                console.error("Tenants load failed", e);
-            }
-        }
-
-        async function loadUsers(tenantId = null) {
+        async function loadUsers(role = null) {
             const loading = document.getElementById('loading');
             const container = document.getElementById('usersTableContainer');
 
@@ -134,7 +121,7 @@
 
             try {
                 let url = '/users';
-                if (tenantId) url += `?tenantId=${tenantId}`;
+                if (role) url += `?role=${role}`;
 
                 const response = await apiCall(url);
 
@@ -273,7 +260,7 @@
                 }
 
                 closeCreateModal();
-                loadUsers(document.getElementById('tenantFilter').value);
+                loadUsers();
 
             } catch (err) {
                 const errDiv = document.getElementById('modalError');
