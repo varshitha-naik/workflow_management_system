@@ -15,18 +15,20 @@
             <div th:replace="~{fragments/layout :: topbar}"></div>
 
             <main class="page-content">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-end mb-6">
                     <div>
                         <h1 id="welcomeTitle">Dashboard</h1>
-                        <div class="flex items-center gap-3 mt-2">
-                            <div class="status-container bg-surface border border-border px-3 py-1 rounded-full">
-                                <div class="status-dot"></div>
-                                <span class="text-success text-sm font-medium">All systems operational</span>
-                            </div>
-                            <span class="text-xs text-muted">Last checked just now</span>
+                        <div id="userMeta" class="flex items-center gap-2 mt-2">
+                            <!-- Badges will be injected here -->
                         </div>
                     </div>
-                    <div id="tenantTag" class="badge badge-blue hidden"></div>
+                    <div class="flex flex-col items-end gap-1">
+                        <div class="status-container bg-surface border border-border px-3 py-1 rounded-full">
+                            <div class="status-dot"></div>
+                            <span class="text-success text-sm font-medium">All systems operational</span>
+                        </div>
+                        <span class="text-xs text-muted">Last checked just now</span>
+                    </div>
                 </div>
 
                 <!-- Stats Grid -->
@@ -90,11 +92,28 @@
             if (!ctx) return;
 
             document.getElementById('welcomeTitle').textContent = `Hello, ${ctx.username}`;
+
+            // Time-based greeting
+            const hour = new Date().getHours();
+            let greeting = 'Good Morning';
+            if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+            else if (hour >= 17) greeting = 'Good Evening';
+
+            document.getElementById('welcomeTitle').textContent = `${greeting}, ${ctx.username}`;
+
+            // Badges
+            const userMeta = document.getElementById('userMeta');
+            let roleName = 'USER';
+            if (hasRole('SUPER_ADMIN')) roleName = 'SUPER ADMIN';
+            else if (hasRole('ADMIN')) roleName = 'ADMIN';
+
+            let badgesHtml = `<span class="badge badge-blue text-xs tracking-wider">${roleName}</span>`;
+
             if (ctx.tenantName) {
-                const tag = document.getElementById('tenantTag');
-                tag.textContent = ctx.tenantName;
-                tag.classList.remove('hidden');
+                badgesHtml += `<span class="badge badge-success text-xs tracking-wider ml-2">${ctx.tenantName}</span>`;
             }
+
+            userMeta.innerHTML = badgesHtml;
 
             const statsGrid = document.getElementById('statsGrid');
             const modulesGrid = document.getElementById('modulesGrid');
