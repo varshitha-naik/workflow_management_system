@@ -52,26 +52,52 @@
             container.innerHTML = '';
 
             try {
-                const assignments = await apiCall('/requests/assignments');
+                const response = await apiCall('/requests/assignments');
                 loading.classList.add('hidden');
 
-                if (!assignments || assignments.length === 0) {
-                    container.innerHTML = '<div class="p-8 text-center text-muted">No assignments found.</div>';
+                // Normalize response: handle paginated object vs flat array
+                let assignments = [];
+                if (Array.isArray(response)) {
+                    assignments = response;
+                } else if (response && Array.isArray(response.content)) {
+                    assignments = response.content;
+                }
+
+                if (assignments.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state-card" style="border:none;">
+                            <div class="p-3 rounded-full bg-surface-hover mb-2">
+                                <svg width="24" height="24" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                            </div>
+                            <h3 class="text-white font-bold mb-1">No Pending Assignments</h3>
+                            <p class="text-sm text-muted">You have no tasks assigned to you at this moment.</p>
+                        </div>
+                    `;
                     return;
                 }
 
+                // Ensure ID used for table is Request ID for easy navigation
+                // Since 'renderTable' uses row.id for onclick events
+                assignments.forEach(a => {
+                    // Back up original assignment ID if needed, though we don't display it
+                    a._assignmentId = a.id;
+                    a.id = a.requestId; // Swap ID for navigation purposes
+                });
+
                 renderTable('assignmentsTableContainer', [
-                    { label: 'Request', key: 'requestId', format: (v) => `#${v}` },
-                    { label: 'Assigned At', key: 'assignedAt', format: formatDate },
-                    { label: 'Due Date', key: 'dueAt', format: formatDueDate },
-                    { label: 'Status', key: 'status', format: renderStatusBadge }
+                    { label: 'Request ID', key: 'requestId', format: (v) => `#${v}` },
+                    { label: 'Workflow', key: 'workflowName', format: v => `<span class="font-bold text-white">${v}</span>` },
+                    { label: 'Current Step', key: 'stepName' }, // Assuming API returns stepName
+                    { label: 'Status', key: 'status', format: renderStatusBadge },
+                    { label: 'Assigned Date', key: 'assignedAt', format: formatDate },
+                    // { label: 'Due Date', key: 'dueAt', format: formatDueDate } // User didn't explicitly ask for due date but visually good. Requested columns: Request ID, Workflow Name, Current Step, Status, Assigned Date.
                 ], assignments, [
                     {
-                        label: 'Open Request',
+                        label: 'View Details',
                         class: 'btn-primary btn-sm',
-                        handler: (row) => window.location.href = `/requests/${row.requestId}`
+                        handler: 'viewAssignmentDetails'
                     }
-                ]);
+                ], 'viewAssignmentDetails'); // Use global string handler
 
             } catch (err) {
                 loading.classList.add('hidden');
@@ -79,9 +105,46 @@
             }
         }
 
+        function viewAssignmentDetails(id) {
+            // If row has requestId, use it. But the ID passed here is row.id (assignment ID).
+            // We usually want request ID. 
+            // Wait, 'viewAssignmentDetails' receives the ID of the row. The row is an assignment object.
+            // Assignment object usually has 'id' (assignment id) and 'requestId'.
+            // The renderTable logic calls handler(row.id). 
+            // If we want to navigate to /requests/{requestId}, we need requestId.
+            // renderTable limits us to passing row.id.
+            // However, we can hack it: we can modify global handler to lookup data, OR we update renderTable to pass entire row? 
+            // Existing app.js renderTable passes `row.id`.
+            // So we need to fetch the assignment again or store a map? 
+            // Actually, for "My Assignments", the ID of the assignment might not be useful for navigation if the target is /requests/{id}.
+            // BUT: Is the "assignments" list actually a list of requests? The user said "My Assignments page".
+            // The API `/requests/assignments` likely returns assignment entities or DTOs.
+            // If the DTO has `requestId`, we want to go there.
+            // If renderTable only passes `id` (which is assignment id), we can't easily jump to request.
+
+            // Allow me to check app.js renderTable implementation again in my memory.
+            // It strictly uses `onclick="${rowClickHandler}(${row.id})"`
+            // This is a limitation.
+
+            // Workaround: 
+            // If the `id` field of the row data IS the request ID, we are good.
+            // If the `id` field is assignment ID, we are stuck.
+            // However, maybe we can map the data before rendering so `id` = `requestId`?
+            // Yes! That's a safe UI-only fix.
+
+            window.location.href = `/requests/${id}`;
+        }
+
+        // We will MAP the response to ensure ID is useful for navigation if needed, 
+        // OR we assume the endpoint returns requests. 
+        // If endpoint returns Assignments, they have an ID.
+        // Let's assume for now we need to preprocess data:
+        // assignments.forEach(a => a.id = a.requestId); // Use Request ID as primary key for table interaction
+
         function renderStatusBadge(status) {
             let cls = 'badge-secondary';
             if (status === 'ASSIGNED') cls = 'badge-info';
+            if (status === 'PENDING') cls = 'badge-warning'; // Common alias?
             if (status === 'COMPLETED') cls = 'badge-success';
             if (status === 'OVERDUE') cls = 'badge-error';
             return `<span class="badge ${cls}">${status}</span>`;

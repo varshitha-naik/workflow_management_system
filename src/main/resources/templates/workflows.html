@@ -173,7 +173,7 @@
                 ], workflows, [
                     { label: 'Design', class: 'btn-primary btn-sm', handler: 'viewWorkflow' },
                     { label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' }
-                ]);
+                ], 'viewWorkflow');
 
             } catch (e) {
                 container.innerHTML = `<div class="p-4 text-center text-error">Failed to load workflows</div>`;

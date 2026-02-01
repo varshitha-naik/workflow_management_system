@@ -711,6 +711,19 @@ select:focus-visible {
     /* Ensure distinct hover */
 }
 
+/* Color Utilities */
+.text-primary {
+    color: var(--primary);
+}
+
+.bg-primary-subtle {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.bg-surface-hover {
+    background: var(--surface-hover);
+}
+
 /* Added Utilities */
 .text-success {
     color: var(--success);
@@ -915,6 +928,144 @@ select:focus-visible {
     display: flex;
 }
 
+/* Page Transitions */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fade-in {
+        animation: none;
+    }
+}
+
+/* Clickable Table Rows */
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.clickable-row:hover {
+    background-color: var(--surface-hover);
+    position: relative;
+    z-index: 1;
+    transform: scale(1.005);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.clickable-row:active {
+    background-color: rgba(99, 102, 241, 0.1);
+    /* Primary hint on click */
+    transform: scale(0.995);
+}
+
+/* Enhanced Stepper - Connecting Lines */
+.stepper-connector-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    margin: 0 8px;
+    position: relative;
+    top: -10px;
+    /* Adjust based on step circle placement */
+    z-index: 0;
+}
+
+.stepper-connector-line.active {
+    background: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+}
+
+/* Request Detail - Activity History Timeline */
+.timeline-container {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-container::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+}
+
+.timeline-item-enhanced {
+    position: relative;
+    margin-bottom: 2rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -2.05rem;
+    top: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    font-size: 0.75rem;
+}
+
+.timeline-marker.success {
+    border-color: var(--success);
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.timeline-marker.error {
+    border-color: var(--error);
+    color: var(--error);
+    background: var(--error-bg);
+}
+
+.timeline-marker.primary {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+/* Empty States */
+.empty-state-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+}
+
+.empty-state-icon {
+    width: 48px;
+    height: 48px;
+    color: var(--text-muted);
+    background: var(--surface-hover);
+    padding: 10px;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+}
+
 .dropdown-item {
     padding: 0.5rem 1rem;
     text-align: left;
@@ -940,4 +1091,59 @@ select:focus-visible {
 
 .dropdown-item.danger:hover {
     background: var(--error-bg);
+}
+
+/* Data Display Grid */
+.data-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .data-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.data-item {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s;
+}
+
+.data-item:hover {
+    background: var(--surface-hover);
+}
+
+.data-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.data-value {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-main);
+    word-break: break-word;
+}
+
+.data-value.highlight {
+    color: var(--primary);
+    /* Highlight color */
+    font-weight: 600;
+}
+
+.data-icon {
+    opacity: 0.7;
+    width: 14px;
+    height: 14px;
 }

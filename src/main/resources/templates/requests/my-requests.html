@@ -58,11 +58,32 @@
             container.innerHTML = '';
 
             try {
-                const requests = await apiCall('/requests/my');
+                const response = await apiCall('/requests/my');
                 loading.classList.add('hidden');
 
-                if (!requests || requests.length === 0) {
-                    container.innerHTML = '<div class="p-8 text-center text-muted">You have no requests. Click "New Request" to start one.</div>';
+                // Normalize response: handle paginated object vs flat array
+                let requests = [];
+                if (Array.isArray(response)) {
+                    requests = response;
+                } else if (response && Array.isArray(response.content)) {
+                    requests = response.content;
+                }
+
+                if (requests.length === 0) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center p-12 text-center">
+                            <div class="p-4 rounded-full bg-surface-hover mb-4">
+                                <svg width="48" height="48" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">No requests found</h3>
+                            <p class="text-muted mb-6">You haven't created any requests yet.</p>
+                            <a href="/requests/new" class="btn btn-primary">
+                                + Start New Request
+                            </a>
+                        </div>
+                    `;
                     return;
                 }
 
@@ -73,17 +94,32 @@
                     { label: 'Status', key: 'status', format: renderStatusBadge },
                     { label: 'Date', key: 'createdAt', format: formatDate }
                 ], requests, [
+                    // Inline action fix: previously handler was function object, but renderTable likely expects string name or we need to adjust renderTable to support closure.
+                    // Wait, renderTable in app.js takes `actions` array.
+                    // Let's check app.js renderTable again. It uses `action.handler` as string inside onclick usually! 
+                    // "onclick=\"${action.handler}(${row.id})\""
+                    // So passing a function `(id) => ...` will FAIL if renderTable expects string.
+                    // However, previous code had `handler: (id) => ...`. That might also be broken if renderTable wasn't updated to support functions.
+                    // I will check app.js in my memory.
+                    // app.js renderTable: `onclick="${action.handler}(${row.id})"` -> implies handler is a string name of a global function.
+                    // BUT, if I want to support inline function, I need to attach it differently or use a global shim.
+                    // Safer to define a global function `viewRequest` and use it.
                     {
                         label: 'View Details',
                         class: 'btn-outline btn-sm',
-                        handler: (id) => window.location.href = `/requests/${id}`
+                        handler: 'viewRequestDetails'
                     }
-                ]);
+                ], 'viewRequestDetails');
 
             } catch (err) {
                 loading.classList.add('hidden');
                 container.innerHTML = `<div class="p-4 text-center text-error">${err.message}</div>`;
             }
+        }
+
+        // Global handler for renderTable string reference
+        function viewRequestDetails(id) {
+            window.location.href = `/requests/${id}`;
         }
 
         function renderStatusBadge(status) {

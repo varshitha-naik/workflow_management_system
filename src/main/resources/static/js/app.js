@@ -208,7 +208,7 @@ function toggleDropdown(e) {
     dropdown.classList.toggle('active');
 }
 
-function renderTable(containerId, columns, data, actions = []) {
+function renderTable(containerId, columns, data, actions = [], rowClickHandler = null) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -217,7 +217,7 @@ function renderTable(containerId, columns, data, actions = []) {
         return;
     }
 
-    let html = '<div class="table-container"><table><thead><tr>';
+    let html = '<div class="table-container fade-in"><table><thead><tr>';
     columns.forEach(col => {
         const alignClass = col.align ? `text-${col.align}` : 'text-left';
         html += `<th class="${alignClass}">${col.label}</th>`;
@@ -226,8 +226,12 @@ function renderTable(containerId, columns, data, actions = []) {
     html += '</tr></thead><tbody>';
 
     data.forEach(row => {
-        // Row is clickable for Design view
-        html += `<tr onclick="window.location.href='/workflows/view?id=${row.id}'" style="cursor: pointer;">`;
+        // Row interaction
+        const clickAttr = rowClickHandler ? `onclick="${rowClickHandler}(${row.id})"` : '';
+        const classAttr = rowClickHandler ? 'class="clickable-row"' : '';
+        const a11yAttr = rowClickHandler ? `tabindex="0" onkeypress="if(event.key==='Enter') ${rowClickHandler}(${row.id})"` : '';
+
+        html += `<tr ${classAttr} ${clickAttr} ${a11yAttr}>`;
         columns.forEach(col => {
             let val = row[col.key];
             if (col.format) val = col.format(val, row);

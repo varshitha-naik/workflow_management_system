@@ -24,7 +24,33 @@
                             <select id="workflowId" class="form-control" required>
                                 <option value="">Loading workflows...</option>
                             </select>
-                            <p id="workflowDesc" class="text-sm text-muted mt-2"></p>
+
+                            <!-- Workflow Preview -->
+                            <div id="workflowPreview" class="hidden mt-4 p-4 rounded bg-surface border border-border">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="p-2 rounded-full bg-primary/10 text-primary">
+                                        <svg width="20" height="20" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-bold m-0" id="previewTitle">Workflow Name</h4>
+                                        <div class="text-xs text-muted" id="previewDesc">Description...</div>
+                                    </div>
+                                </div>
+                                <div class="flex gap-4 text-xs text-muted border-t border-border pt-3">
+                                    <div>
+                                        <span class="font-bold text-white block" id="previewStepsCount">0</span>
+                                        Steps
+                                    </div>
+                                    <div class="flex-1">
+                                        <span class="font-bold text-white block">Flow</span>
+                                        <span id="previewFlow">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Dynamic Payload Section -->
@@ -34,18 +60,34 @@
                                 <button type="button" onclick="addField()" class="btn btn-outline btn-sm">+ Add
                                     Field</button>
                             </div>
-                            <div id="payloadFields"
-                                class="space-y-3 bg-dark-lighter p-4 rounded border border-gray-700">
-                                <p id="emptyPayloadMsg" class="text-sm text-muted text-center italic">Add fields to
-                                    provide data for this request (e.g. Amount, Date, Reason).</p>
+                            <div id="payloadFields" class="space-y-3 min-h-[100px]">
+                                <!-- Empty State -->
+                                <div id="emptyPayloadState"
+                                    class="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded text-center">
+                                    <div class="p-3 rounded-full bg-surface-hover mb-3">
+                                        <svg width="24" height="24" fill="none" stroke="var(--text-muted)"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                                            </path>
+                                        </svg>
+                                    </div>
+                                    <p class="text-sm text-muted">No data fields added yet.</p>
+                                    <p class="text-xs text-dim mt-1">Add fields to provide data like <span
+                                            class="text-white">Amount</span>, <span class="text-white">Date</span>, or
+                                        <span class="text-white">Reason</span>.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
                         <div id="formError" class="alert alert-error hidden mb-4"></div>
+                        <div id="formSuccess" class="alert alert-success hidden mb-4"></div>
 
                         <div class="flex justify-end gap-2 mt-6">
-                            <a href="/my-requests" class="btn btn-outline">Cancel</a>
-                            <button type="submit" id="submitBtn" class="btn btn-primary">Submit Request</button>
+                            <button type="button" onclick="cancelRequest()" class="btn btn-outline">Cancel</button>
+                            <button type="submit" id="submitBtn" class="btn btn-primary" disabled>Submit
+                                Request</button>
                         </div>
                     </form>
                 </div>
@@ -65,13 +107,14 @@
 
             loadWorkflows();
             document.getElementById('createRequestForm').addEventListener('submit', handleSubmit);
+
+            // Global validation listener
+            document.getElementById('workflowId').addEventListener('change', validateForm);
         }
 
         async function loadWorkflows() {
             const select = document.getElementById('workflowId');
             try {
-                // Fetch workflows. Assuming /api/workflows returns list.
-                // We might need to filter for active ones.
                 const workflows = await apiCall('/workflows');
 
                 select.innerHTML = '<option value="">-- Select a Workflow --</option>';
@@ -80,14 +123,53 @@
                         const opt = document.createElement('option');
                         opt.value = w.id;
                         opt.textContent = w.name;
+                        // Store basic info but we will fetch details for full preview
                         opt.dataset.desc = w.description || '';
                         select.appendChild(opt);
                     }
                 });
 
-                select.addEventListener('change', (e) => {
-                    const desc = e.target.selectedOptions[0].dataset.desc;
-                    document.getElementById('workflowDesc').textContent = desc;
+                select.addEventListener('change', async (e) => {
+                    const id = e.target.value;
+                    const preview = document.getElementById('workflowPreview');
+
+                    if (!id) {
+                        preview.classList.add('hidden');
+                        validateForm();
+                        return;
+                    }
+
+                    // Show loader or just fetch
+                    preview.classList.remove('hidden');
+                    const selectedOpt = e.target.selectedOptions[0];
+                    document.getElementById('previewTitle').textContent = selectedOpt.textContent;
+                    document.getElementById('previewDesc').textContent = selectedOpt.dataset.desc || 'No description';
+                    document.getElementById('previewFlow').textContent = 'Loading steps...';
+
+                    // Fetch steps
+                    try {
+                        const steps = await apiCall(`/workflows/${id}/steps`);
+                        const sorted = (steps || []).sort((a, b) => a.stepOrder - b.stepOrder);
+
+                        document.getElementById('previewStepsCount').textContent = sorted.length;
+
+                        // Build flow summary
+                        if (sorted.length === 0) {
+                            document.getElementById('previewFlow').textContent = 'No steps defined';
+                        } else {
+                            const flowStr = sorted.map(s => {
+                                let label = s.requiredRole;
+                                if (s.autoApprove) label += ' (Auto)';
+                                return label;
+                            }).join(' → ');
+                            document.getElementById('previewFlow').textContent = flowStr;
+                        }
+                    } catch (err) {
+                        console.error("Failed to load steps", err);
+                        document.getElementById('previewFlow').textContent = 'Error loading steps';
+                    }
+
+                    validateForm();
                 });
 
             } catch (err) {
@@ -97,20 +179,75 @@
         }
 
         function addField() {
-            document.getElementById('emptyPayloadMsg').style.display = 'none';
-            const container = document.getElementById('payloadFields');
-            const id = Date.now();
+            // Hide empty state
+            document.getElementById('emptyPayloadState').classList.add('hidden');
 
+            const container = document.getElementById('payloadFields');
             const div = document.createElement('div');
-            div.className = 'flex gap-2 items-start';
+            div.className = 'field-row bg-surface p-3 rounded border border-border';
             div.innerHTML = `
-                <input type="text" placeholder="Key (e.g. Amount)" class="form-control flex-1 field-key" required>
-                <input type="text" placeholder="Value" class="form-control flex-1 field-value" required>
-                <button type="button" onclick="this.parentElement.remove()" class="btn btn-outline btn-sm text-error" style="border-color:var(--error)">X</button>
+                <div class="flex gap-2 items-start">
+                    <div class="flex-1">
+                        <input type="text" placeholder="Key (e.g. Amount)" class="form-control field-key text-sm" required oninput="validateInput(this); validateForm()">
+                        <small class="text-xs text-muted hint-text mt-1 block h-4"></small>
+                    </div>
+                    <div class="flex-1">
+                        <input type="text" placeholder="Value" class="form-control field-value text-sm" required oninput="validateForm()">
+                    </div>
+                    <button type="button" onclick="removeField(this)" class="btn btn-outline btn-sm text-error hover:border-error" title="Remove Field">×</button>
+                </div>
             `;
             container.appendChild(div);
-            // Optionally focus first input
             div.querySelector('input').focus();
+
+            validateForm();
+        }
+
+        function removeField(btn) {
+            btn.closest('.field-row').remove();
+
+            // Check if empty
+            const rows = document.querySelectorAll('.field-row');
+            if (rows.length === 0) {
+                document.getElementById('emptyPayloadState').classList.remove('hidden');
+            }
+            validateForm();
+        }
+
+        function validateInput(input) {
+            const hint = input.parentElement.querySelector('.hint-text');
+            const val = input.value.toLowerCase();
+
+            if (val.includes('amount') || val.includes('price') || val.includes('cost')) {
+                hint.textContent = 'Tip: Use numeric values for calculations';
+            } else if (val.includes('date') || val.includes('time')) {
+                hint.textContent = 'Tip: Use YYYY-MM-DD format';
+            } else if (val.includes('email')) {
+                hint.textContent = 'Tip: Ensure valid email format';
+            } else {
+                hint.textContent = '';
+            }
+        }
+
+        function validateForm() {
+            const workflowSelected = !!document.getElementById('workflowId').value;
+            // Check if at least one field exists (keys don't necessarily need values to enable button, but let's require at least presence)
+            // Actually requirement says "At least one request field is added".
+            const hasFields = document.querySelectorAll('.field-row').length > 0;
+
+            // Additional check: valid inputs?
+            // Let's keep it simple: just need workflow + visible fields.
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = !(workflowSelected && hasFields);
+        }
+
+        function cancelRequest() {
+            const hasData = document.querySelectorAll('.field-row').length > 0 || document.getElementById('workflowId').value;
+            if (hasData) {
+                if (!confirm('Discard this request? All entered data will be lost.')) return;
+            }
+            window.location.href = '/my-requests';
         }
 
         async function handleSubmit(e) {
@@ -118,6 +255,7 @@
             const btn = document.getElementById('submitBtn');
             setLoading('submitBtn', true);
             document.getElementById('formError').classList.add('hidden');
+            const successDiv = document.getElementById('formSuccess');
 
             try {
                 const workflowId = document.getElementById('workflowId').value;
@@ -125,31 +263,35 @@
 
                 // Construct Payload
                 const payload = {};
-                document.querySelectorAll('#payloadFields > div').forEach(div => {
+                document.querySelectorAll('.field-row').forEach(div => {
                     const key = div.querySelector('.field-key').value.trim();
                     const value = div.querySelector('.field-value').value.trim();
                     if (key) payload[key] = value;
                 });
 
-                if (Object.keys(payload).length === 0) {
-                    // Allow empty? Maybe.
-                }
-
                 const body = {
                     workflowId: workflowId,
-                    payload: payload // Controller expects map or object? Service converts to JSON string.
+                    payload: payload
                 };
 
-                await apiCall('/requests', 'POST', body);
+                const response = await apiCall('/requests', 'POST', body);
 
-                // Redirect
-                window.location.href = '/my-requests';
+                // Show success feedback
+                successDiv.classList.remove('hidden');
+                successDiv.innerHTML = `Request created successfully! ID: <strong>${response.id || 'N/A'}</strong>. Redirecting...`;
+
+                // Disable form
+                document.getElementById('createRequestForm').style.pointerEvents = 'none';
+
+                // Delay redirect
+                setTimeout(() => {
+                    window.location.href = '/my-requests';
+                }, 2000);
 
             } catch (err) {
                 const errDiv = document.getElementById('formError');
                 errDiv.textContent = err.message;
                 errDiv.classList.remove('hidden');
-            } finally {
                 setLoading('submitBtn', false, 'Submit Request');
             }
         }

@@ -217,16 +217,43 @@
 
                 // Render Payload
                 const payloadDiv = document.getElementById('payloadContainer');
+
                 if (currentRequest.payload && Object.keys(currentRequest.payload).length > 0) {
-                    payloadDiv.innerHTML = '';
+                    let itemsHtml = '<div class="data-grid">';
+
                     for (const [key, val] of Object.entries(currentRequest.payload)) {
-                        payloadDiv.innerHTML += `
-                            <div class="flex flex-col border-b border-gray-800 pb-2 last:border-0">
-                                <span class="text-xs text-muted uppercase font-bold tracking-wider mb-1">${key}</span>
-                                <span class="text-white">${val}</span>
+                        const lowKey = key.toLowerCase();
+                        let icon = '<svg class="data-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'; // default info
+
+                        if (lowKey.includes('amount') || lowKey.includes('price') || lowKey.includes('cost')) {
+                            // Money/Numeric icon
+                            icon = '<svg class="data-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                        } else if (lowKey.includes('date') || lowKey.includes('time')) {
+                            // Calendar icon
+                            icon = '<svg class="data-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>';
+                        } else if (lowKey.includes('reason') || lowKey.includes('desc')) {
+                            // Text icon
+                            icon = '<svg class="data-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>';
+                        }
+
+                        // Highlight numeric amounts
+                        const isHighlight = lowKey.includes('amount') || lowKey.includes('price');
+
+                        itemsHtml += `
+                            <div class="data-item">
+                                <span class="data-label">${icon} ${key}</span>
+                                <span class="data-value ${isHighlight ? 'highlight' : ''}">${val}</span>
                             </div>
                         `;
                     }
+                    itemsHtml += '</div>';
+                    payloadDiv.innerHTML = itemsHtml;
+                } else {
+                    payloadDiv.innerHTML = `
+                        <div class="empty-state-card py-4" style="border:none; background:transparent;">
+                             <p class="text-sm text-muted">No data provided.</p>
+                        </div>
+                    `;
                 }
 
                 // Load Steps for Stepper
@@ -246,27 +273,50 @@
                 const container = document.getElementById('historyContainer');
 
                 if (!history || history.length === 0) {
-                    container.innerHTML = '<p class="text-muted">No activity yet.</p>';
+                    container.innerHTML = `
+                        <div class="empty-state-card py-4" style="border:none; background:transparent;">
+                            <div class="p-3 rounded-full bg-surface-hover mb-2">
+                                <svg width="24" height="24" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            </div>
+                            <p class="text-sm text-muted">No activity recorded yet.</p>
+                        </div>
+                    `;
                     return;
                 }
 
-                container.innerHTML = history.map(h => `
-                    <div class="timeline-item">
+                const itemsHtml = history.map(h => {
+                    let markerClass = 'primary';
+                    if (h.actionType === 'APPROVE') markerClass = 'success';
+                    if (h.actionType === 'REJECT') markerClass = 'error';
+
+                    const icon = h.actionType === 'APPROVE'
+                        ? '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                        : h.actionType === 'REJECT'
+                            ? '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+                            : '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15l9-5-9-5-9 5 9 5z"></path><path d="M12 15l9-5-9-5-9 5 9 5z" opacity="0.5"></path></svg>'; // Generic activity
+
+                    return `
+                    <div class="timeline-item-enhanced">
+                        <div class="timeline-marker ${markerClass}">
+                            ${icon}
+                        </div>
                         <div class="flex justify-between mb-1">
                             <span class="font-bold text-sm">${h.actionByUsername}</span>
                             <span class="text-xs text-muted">${new Date(h.actionTime).toLocaleString()}</span>
                         </div>
-                        <div class="mb-1">
+                        <div class="mb-2">
                             <span class="badge ${getActionBadgeClass(h.actionType)} text-xs p-1">${h.actionType}</span>
                         </div>
-                        <p class="text-sm text-gray-300">
+                        <p class="text-sm text-gray-300 bg-surface-hover p-2 rounded border border-gray-700">
                              ${h.comments || 'No comments'}
                         </p>
-                        <div class="text-xs text-muted mt-1">
+                        <div class="text-xs text-muted mt-2 pl-1 border-l-2 border-gray-700">
                             ${h.fromStepName} &rarr; ${h.toStepName || 'End'}
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
+
+                container.innerHTML = `<div class="timeline-container">${itemsHtml}</div>`;
 
             } catch (err) {
                 console.error("History load error", err);
@@ -286,23 +336,45 @@
 
             // Determine active index
             let activeIndex = steps.findIndex(s => s.id === currentStepId);
-            if (status === 'COMPLETED') activeIndex = steps.length; // All done
-            if (status === 'REJECTED') activeIndex = activeIndex; // Stop at current
+            if (status === 'COMPLETED') activeIndex = steps.length;
+            // If REJECTED, active index is usually the one that was rejected, or we can show it as error.
 
             container.innerHTML = steps.map((s, idx) => {
                 let cls = 'step-item';
-                if (idx < activeIndex) cls += ' completed';
-                else if (idx === activeIndex && status !== 'REJECTED') cls += ' active';
-                else if (idx === activeIndex && status === 'REJECTED') cls += ' error'; // Add error styling if needed
+                let isCompleted = idx < activeIndex;
+                let isActive = idx === activeIndex && status !== 'REJECTED';
+                let isError = idx === activeIndex && status === 'REJECTED';
+
+                if (isCompleted) cls += ' completed';
+                else if (isActive) cls += ' active';
+                else if (isError) cls += ' error';
+
+                // Connector logic
+                // If this is NOT the last item, show connector to the right? 
+                // Actually the design was flex items side-by-side. 
+                // We need to inject a connector div between items or as part of the item.
+                // Let's use a flex layout where we insert connector divs between step items.
+                // The map returns an array of strings. We can join them with connector HTML?
+                // Or better, each item has a connector except the last one.
+
+                const showConnector = idx < steps.length - 1;
+                const connectorClass = (isCompleted) ? 'stepper-connector-line active' : 'stepper-connector-line';
 
                 return `
-                    <div class="${cls}" style="flex:1">
-                        <div class="step-circle">${idx + 1}</div>
-                        <div class="step-title">${s.stepName}</div>
-                        <div class="text-xs text-muted">${s.requiredRole}</div>
+                    <div class="flex-1 flex items-center">
+                        <div class="${cls} relative z-10">
+                            <div class="step-circle">${idx + 1}</div>
+                            <div class="step-title mt-2">${s.stepName}</div>
+                            <div class="text-xs text-muted">${s.requiredRole}</div>
+                        </div>
+                        ${showConnector ? `<div class="${connectorClass}"></div>` : ''}
                     </div>
                 `;
             }).join('');
+
+            // Adjust container display to ensure flex alignment
+            // The container needs to be just 'flex' (it is .stepper already)
+            // But we need to make sure items don't shrink weirdly.
         }
 
         function checkPermissions() {
