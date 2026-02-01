@@ -9,6 +9,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
+@org.springframework.transaction.annotation.Transactional
 public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
@@ -30,7 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         // System.out.println("User password is null for: " + usernameOrEmail);
         // throw new UsernameNotFoundException("User password is not set");
         // }
-        System.out.println("User loaded successfully: " + user.getUsername() + ", Role: " + user.getRole());
+
         return UserPrincipal.create(user);
     }
 }

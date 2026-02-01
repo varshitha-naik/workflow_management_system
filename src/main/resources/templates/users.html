@@ -136,9 +136,13 @@
                 let url = '/users';
                 if (tenantId) url += `?tenantId=${tenantId}`;
 
-                const users = await apiCall(url);
+                const response = await apiCall(url);
 
-                let displayUsers = users || [];
+                let displayUsers = Array.isArray(response)
+                    ? response
+                    : Array.isArray(response.content)
+                        ? response.content
+                        : [];
                 const ctx = getAuthContext();
 
                 // Role-based visibility filtering

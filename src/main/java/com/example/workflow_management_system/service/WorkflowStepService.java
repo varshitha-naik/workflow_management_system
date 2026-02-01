@@ -65,16 +65,17 @@ public class WorkflowStepService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "workflowSteps", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #workflowId + '-' + #pageable")
-    public org.springframework.data.domain.Page<WorkflowStepResponse> getStepsByWorkflow(Long workflowId,
-            org.springframework.data.domain.Pageable pageable) {
+    @Cacheable(value = "workflowSteps", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #workflowId")
+    public List<WorkflowStepResponse> getStepsByWorkflow(Long workflowId) {
         Workflow workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow not found"));
 
         SecurityUtils.validateTenantAccess(workflow.getTenant().getId());
 
-        return workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId, pageable)
-                .map(this::mapToResponse);
+        return workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)

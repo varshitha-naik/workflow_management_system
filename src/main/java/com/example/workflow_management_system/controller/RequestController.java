@@ -16,7 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
-@RequestMapping("/api/v1/requests")
+@RequestMapping("/api/requests")
 @Validated
 @Tag(name = "Requests", description = "Request management endpoints")
 public class RequestController {

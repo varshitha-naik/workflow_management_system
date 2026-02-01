@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/api")
 @Validated
 @Tag(name = "Workflow Steps", description = "Workflow Step management endpoints")
 public class WorkflowStepController {
@@ -33,10 +33,9 @@ public class WorkflowStepController {
     }
 
     @GetMapping("/workflows/{workflowId}/steps")
-    public ResponseEntity<org.springframework.data.domain.Page<WorkflowStepResponse>> getStepsByWorkflow(
-            @PathVariable @Min(1) Long workflowId,
-            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId, pageable));
+    public ResponseEntity<List<WorkflowStepResponse>> getStepsByWorkflow(
+            @PathVariable @Min(1) Long workflowId) {
+        return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId));
     }
 
     @GetMapping("/workflow-steps/{id}")

@@ -80,17 +80,18 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "workflows", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + #pageable")
-    public org.springframework.data.domain.Page<WorkflowResponse> getAllWorkflows(
-            org.springframework.data.domain.Pageable pageable) {
+    @Cacheable(value = "workflows", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId()")
+    public List<WorkflowResponse> getAllWorkflows() {
         Long tenantId = SecurityUtils.getCurrentUser().getTenantId();
 
         if (tenantId == null) {
-            return org.springframework.data.domain.Page.empty();
+            return java.util.Collections.emptyList();
         }
 
-        return workflowRepository.findByTenantId(tenantId, pageable)
-                .map(this::mapToResponse);
+        return workflowRepository.findByTenantId(tenantId)
+                .stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
 
     @Caching(evict = {

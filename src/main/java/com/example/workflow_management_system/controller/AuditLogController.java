@@ -10,79 +10,83 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/audit-logs")
+@RequestMapping("/api/audit-logs")
 @Tag(name = "Audit Logs", description = "Audit Log endpoints")
 public class AuditLogController {
 
-    private final AuditLogService auditLogService;
-    private final com.example.workflow_management_system.service.ExportService exportService;
+        private final AuditLogService auditLogService;
+        private final com.example.workflow_management_system.service.ExportService exportService;
 
-    public AuditLogController(AuditLogService auditLogService,
-            com.example.workflow_management_system.service.ExportService exportService) {
-        this.auditLogService = auditLogService;
-        this.exportService = exportService;
-    }
-
-    @GetMapping("/export")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public void exportAuditLogs(
-            @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) String entityId,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
-            @RequestParam(defaultValue = "csv") String format,
-            jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
-
-        com.example.workflow_management_system.service.ExportService.ExportFormat exportFormat;
-        try {
-            exportFormat = com.example.workflow_management_system.service.ExportService.ExportFormat
-                    .valueOf(format.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            response.sendError(org.springframework.http.HttpStatus.BAD_REQUEST.value(),
-                    "Invalid format. Supported: csv, xlsx");
-            return;
+        public AuditLogController(AuditLogService auditLogService,
+                        com.example.workflow_management_system.service.ExportService exportService) {
+                this.auditLogService = auditLogService;
+                this.exportService = exportService;
         }
 
-        response.setContentType(
-                exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
-                        ? "text/csv"
-                        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        String extension = exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
-                ? "csv"
-                : "xlsx";
-        response.setHeader("Content-Disposition",
-                "attachment; filename=\"audit_logs_" + java.time.LocalDateTime.now() + "." + extension + "\"");
+        @GetMapping("/export")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        public void exportAuditLogs(
+                        @RequestParam(required = false) String entityType,
+                        @RequestParam(required = false) String entityId,
+                        @RequestParam(required = false) String action,
+                        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+                        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
+                        @RequestParam(defaultValue = "csv") String format,
+                        jakarta.servlet.http.HttpServletResponse response) throws java.io.IOException {
 
-        java.util.List<AuditLog> logs = auditLogService.getAuditLogsForExport(entityType, entityId, action, fromDate,
-                toDate);
-        exportService.exportAuditLogs(logs, exportFormat, response.getOutputStream());
-    }
+                com.example.workflow_management_system.service.ExportService.ExportFormat exportFormat;
+                try {
+                        exportFormat = com.example.workflow_management_system.service.ExportService.ExportFormat
+                                        .valueOf(format.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                        response.sendError(org.springframework.http.HttpStatus.BAD_REQUEST.value(),
+                                        "Invalid format. Supported: csv, xlsx");
+                        return;
+                }
 
-    @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<org.springframework.data.domain.Page<AuditLog>> getAuditLogs(
-            @RequestParam(required = false) String entityType,
-            @RequestParam(required = false) String entityId,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
-            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
-            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+                response.setContentType(
+                                exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                                                ? "text/csv"
+                                                : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                String extension = exportFormat == com.example.workflow_management_system.service.ExportService.ExportFormat.CSV
+                                ? "csv"
+                                : "xlsx";
+                response.setHeader("Content-Disposition",
+                                "attachment; filename=\"audit_logs_" + java.time.LocalDateTime.now() + "." + extension
+                                                + "\"");
 
-        java.util.Set<String> allowedFields = java.util.Set.of("id", "timestamp", "entityType", "action");
-        org.springframework.data.domain.Sort defaultSort = org.springframework.data.domain.Sort
-                .by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp");
+                java.util.List<AuditLog> logs = auditLogService.getAuditLogsForExport(entityType, entityId, action,
+                                fromDate,
+                                toDate);
+                exportService.exportAuditLogs(logs, exportFormat, response.getOutputStream());
+        }
 
-        pageable = com.example.workflow_management_system.util.PaginationUtils.validateAndApplyDefaults(pageable,
-                allowedFields, defaultSort);
+        @GetMapping
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        public ResponseEntity<org.springframework.data.domain.Page<AuditLog>> getAuditLogs(
+                        @RequestParam(required = false) String entityType,
+                        @RequestParam(required = false) String entityId,
+                        @RequestParam(required = false) String action,
+                        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime fromDate,
+                        @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime toDate,
+                        @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
 
-        return ResponseEntity
-                .ok(auditLogService.getAuditLogs(entityType, entityId, action, fromDate, toDate, pageable));
-    }
+                java.util.Set<String> allowedFields = java.util.Set.of("id", "timestamp", "entityType", "action");
+                org.springframework.data.domain.Sort defaultSort = org.springframework.data.domain.Sort
+                                .by(org.springframework.data.domain.Sort.Direction.DESC, "timestamp");
 
-    @GetMapping("/recent")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
-    public ResponseEntity<List<AuditLog>> getRecentAuditLogs() {
-        return ResponseEntity.ok(auditLogService.getRecentAuditLogs());
-    }
+                pageable = com.example.workflow_management_system.util.PaginationUtils.validateAndApplyDefaults(
+                                pageable,
+                                allowedFields, defaultSort);
+
+                return ResponseEntity
+                                .ok(auditLogService.getAuditLogs(entityType, entityId, action, fromDate, toDate,
+                                                pageable));
+        }
+
+        @GetMapping("/recent")
+        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        public ResponseEntity<List<AuditLog>> getRecentAuditLogs() {
+                return ResponseEntity.ok(auditLogService.getRecentAuditLogs());
+        }
 }

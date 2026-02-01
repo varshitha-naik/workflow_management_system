@@ -16,7 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
-@RequestMapping("/api/v1/tenants")
+@RequestMapping("/api/tenants")
 @Validated
 public class TenantController {
 

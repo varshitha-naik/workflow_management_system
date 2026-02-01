@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.Min;
 
 @RestController
-@RequestMapping("/api/v1/users")
+@RequestMapping("/api/users")
 @Validated
 public class UserController {
 

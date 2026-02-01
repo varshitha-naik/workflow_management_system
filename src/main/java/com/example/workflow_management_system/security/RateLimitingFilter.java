@@ -38,7 +38,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
         // 2. Identify Key and Bucket Type
         String key;
-        boolean isAuthEndpoint = path.startsWith("/api/v1/auth/");
+        boolean isAuthEndpoint = path.startsWith("/api/auth/");
 
         if (SecurityContextHolder.getContext().getAuthentication() != null &&
                 SecurityContextHolder.getContext().getAuthentication().isAuthenticated() &&

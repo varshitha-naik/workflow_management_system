@@ -26,14 +26,30 @@ public class SecurityConfig {
         private final com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler;
         private final com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter;
 
+        private final com.example.workflow_management_system.security.CustomUserDetailsService userDetailsService;
+
         public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
                         com.example.workflow_management_system.security.JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
                         com.example.workflow_management_system.security.JwtAccessDeniedHandler jwtAccessDeniedHandler,
-                        com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter) {
+                        com.example.workflow_management_system.security.RateLimitingFilter rateLimitingFilter,
+                        com.example.workflow_management_system.security.CustomUserDetailsService userDetailsService) {
                 this.jwtAuthenticationFilter = jwtAuthenticationFilter;
                 this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
                 this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
                 this.rateLimitingFilter = rateLimitingFilter;
+                this.userDetailsService = userDetailsService;
+                System.out.println("SecurityConfig initialized with UserDetailsService: "
+                                + userDetailsService.getClass().getName());
+        }
+
+        @Bean
+        public org.springframework.security.authentication.dao.DaoAuthenticationProvider authenticationProvider() {
+                org.springframework.security.authentication.dao.DaoAuthenticationProvider authProvider = new org.springframework.security.authentication.dao.DaoAuthenticationProvider();
+
+                authProvider.setUserDetailsService(userDetailsService);
+                authProvider.setPasswordEncoder(passwordEncoder());
+
+                return authProvider;
         }
 
         @Bean
@@ -57,7 +73,7 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers("/api/v1/auth/**").permitAll()
+                                                .requestMatchers("/api/auth/**").permitAll()
                                                 .requestMatchers("/", "/login", "/forgot-password", "/reset-password",
                                                                 "/set-password",
                                                                 "/dashboard", "/profile",
@@ -72,8 +88,8 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .requestMatchers("/actuator/health").permitAll()
                                                 .requestMatchers("/actuator/**").hasRole("SUPER_ADMIN")
-                                                .requestMatchers(HttpMethod.POST, "/api/v1/users").authenticated()
-                                                .requestMatchers(HttpMethod.POST, "/api/v1/tenants").permitAll()
+                                                .requestMatchers(HttpMethod.POST, "/api/users").authenticated()
+                                                .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(exception -> exception
                                                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
