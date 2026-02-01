@@ -41,9 +41,9 @@
                 <!-- Action Modules -->
                 <h2 class="mb-4">Quick Actions</h2>
                 <div id="modulesGrid" class="grid grid-3">
-                    <a href="/profile" class="card hover:border-primary cursor-pointer block">
+                    <a href="/profile" class="card action-card block cursor-pointer">
                         <div class="flex items-center gap-2 mb-2">
-                            <span class="p-2 rounded bg-opacity-10 bg-indigo-500 text-indigo-400">
+                            <span class="p-2 rounded action-icon-bg">
                                 <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
                                     <path
                                         d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -136,23 +136,38 @@
                 let superAdminModules = '';
                 if (ctx.tenantName === 'WorkflowSys') {
                     superAdminModules += `
-                         <a href="/tenants" class="card block hover:border-primary">
-                             <h3 class="text-primary mb-1">Manage Tenants</h3>
-                             <p class="text-sm">Create and remove system tenants</p>
+                         <a href="/tenants" class="card action-card block cursor-pointer">
+                             <div class="flex items-center gap-2 mb-2">
+                                <span class="p-2 rounded action-icon-bg">
+                                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/></svg>
+                                </span>
+                                <h3 class="m-0 text-white">Manage Tenants</h3>
+                             </div>
+                             <p class="text-sm text-muted">Create and remove system tenants</p>
                          </a>`;
                 }
                 superAdminModules += `
-                     <a href="/users" class="card block hover:border-primary">
-                         <h3 class="text-primary mb-1">Users</h3>
-                         <p class="text-sm">Administer users for this tenant</p>
+                     <a href="/users" class="card action-card block cursor-pointer">
+                         <div class="flex items-center gap-2 mb-2">
+                            <span class="p-2 rounded action-icon-bg">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                            </span>
+                            <h3 class="m-0 text-white">Users</h3>
+                         </div>
+                         <p class="text-sm text-muted">Administer users for this tenant</p>
                      </a>
                  `;
                 modulesGrid.innerHTML += superAdminModules;
             } else if (hasRole('ADMIN')) {
                 modulesGrid.innerHTML += `
-                     <a href="/users" class="card block hover:border-primary">
-                         <h3 class="text-primary mb-1">Team Members</h3>
-                         <p class="text-sm">Manage users in ${ctx.tenantName || 'organization'}</p>
+                     <a href="/users" class="card action-card block cursor-pointer">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="p-2 rounded action-icon-bg">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                            </span>
+                            <h3 class="m-0 text-white">Team Members</h3>
+                        </div>
+                        <p class="text-sm text-muted">Manage users in ${ctx.tenantName || 'organization'}</p>
                      </a>
                  `;
             }
