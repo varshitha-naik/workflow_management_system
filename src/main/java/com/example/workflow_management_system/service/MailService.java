@@ -14,6 +14,21 @@ public class MailService {
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url}")
     private String frontendUrl;
 
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.host}")
+    private String mailHost;
+
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.port}")
+    private String mailPort;
+
+    @org.springframework.beans.factory.annotation.Value("${spring.mail.username}")
+    private String mailUsername;
+
+    @jakarta.annotation.PostConstruct
+    public void logMailConfig() {
+        logger.info("MailService Initialized with Config: Host={}, Port={}, Username={}", mailHost, mailPort,
+                mailUsername);
+    }
+
     public MailService(JavaMailSender emailSender, org.springframework.core.io.ResourceLoader resourceLoader) {
         this.emailSender = emailSender;
         this.resourceLoader = resourceLoader;
@@ -79,6 +94,7 @@ public class MailService {
 
     public void sendHtmlMail(String to, String subject, String htmlBody) {
         try {
+            logger.info("Preparing to send HTML email to: {}", to);
             jakarta.mail.internet.MimeMessage mimeMessage = emailSender.createMimeMessage();
             org.springframework.mail.javamail.MimeMessageHelper helper = new org.springframework.mail.javamail.MimeMessageHelper(
                     mimeMessage, "utf-8");
@@ -88,7 +104,9 @@ public class MailService {
             helper.setSubject(subject);
             helper.setFrom("noreply@workflowsystem.com");
 
+            logger.info("Dispatching email via JavaMailSender...");
             emailSender.send(mimeMessage);
+            logger.info("Email dispatched successfully to {}", to);
         } catch (Exception e) {
             logger.error("Failed to send HTML email to {}", to, e);
         }

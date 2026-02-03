@@ -30,12 +30,28 @@
 
                 <!-- Role Filter -->
                 <div id="filterContainer" class="card p-4 mb-6 flex items-center gap-4">
-                    <label class="font-bold text-sm">Role Filter:</label>
-                    <select id="roleFilter" class="form-control w-64">
-                        <option value="">All Users</option>
-                        <option value="ADMIN">Admins</option>
-                        <option value="USER">Users</option>
-                    </select>
+                    <div class="flex items-center gap-2">
+                        <label class="font-bold text-sm text-muted">Role:</label>
+                        <select id="roleFilter" class="form-control w-48">
+                            <option value="">All Roles</option>
+                            <option value="ADMIN">Admins</option>
+                            <option value="USER">Users</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="font-bold text-sm text-muted">Status:</label>
+                        <select id="statusFilter" class="form-control w-48">
+                            <option value="">All Statuses</option>
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+
+                    <div class="ml-auto text-xs text-muted flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-surface-hover border border-error"></span>
+                        Inactive users have not completed activation
+                    </div>
                 </div>
 
                 <!-- Table Area -->
@@ -44,6 +60,16 @@
                     <div id="usersTableContainer"></div>
                 </div>
             </main>
+
+            <!-- Toast Notification -->
+            <div id="toast" style="display: none;"
+                class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 transform translate-y-10 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+                <svg width="20" height="20" class="text-green-500" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span id="toastMessage">User invited successfully. Awaiting activation.</span>
+            </div>
         </div>
     </div>
 
@@ -67,6 +93,8 @@
                             <option value="USER">User</option>
                             <option value="ADMIN" id="roleAdminOption">Admin</option>
                         </select>
+                        <small class="text-muted block mt-1 text-xs">Admins and Users will receive an email to set their
+                            password before they can log in.</small>
                     </div>
                 </div>
 
@@ -90,6 +118,22 @@
         </div>
     </div>
 
+    <!-- Delete Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal-content max-w-sm">
+            <h2 class="text-xl font-bold mb-2">Delete User</h2>
+            <p class="text-muted mb-6">Are you sure you want to remove this user? This action cannot be undone.</p>
+            <div id="deleteError" class="alert alert-error hidden mb-4"></div>
+
+            <input type="hidden" id="deleteUserId">
+
+            <div class="flex justify-end gap-2">
+                <button onclick="closeDeleteModal()" class="btn btn-outline">Cancel</button>
+                <button onclick="confirmDelete()" id="deleteBtn" class="btn btn-danger">Delete User</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Layout Scripts -->
     <div th:replace="~{fragments/layout :: scripts}"></div>
 
@@ -105,14 +149,16 @@
 
             loadUsers();
 
-            document.getElementById('roleFilter').addEventListener('change', (e) => {
-                loadUsers(e.target.value);
-            });
+            document.getElementById('roleFilter').addEventListener('change', () => loadUsers());
+            document.getElementById('statusFilter').addEventListener('change', () => loadUsers());
 
             document.getElementById('createUserForm').addEventListener('submit', handleSave);
         }
 
-        async function loadUsers(role = null) {
+        async function loadUsers() {
+            const role = document.getElementById('roleFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
             const loading = document.getElementById('loading');
             const container = document.getElementById('usersTableContainer');
 
@@ -120,8 +166,12 @@
             container.innerHTML = '';
 
             try {
-                let url = '/users';
-                if (role) url += `?role=${role}`;
+                // Construct URL with params
+                const params = new URLSearchParams();
+                if (role) params.append('role', role);
+                if (status) params.append('active', status);
+
+                const url = '/users?' + params.toString();
 
                 const response = await apiCall(url);
 
@@ -132,7 +182,7 @@
                         : [];
                 const ctx = getAuthContext();
 
-                // Role-based visibility filtering
+                // Role-based visibility filtering (Client-side safety)
                 if (hasRole('ADMIN')) {
                     // Admins can strictly only see normal Users in their tenant
                     displayUsers = displayUsers.filter(u => u.role === 'USER' && u.tenantId === ctx.tenantId);
@@ -147,16 +197,10 @@
 
                 loading.classList.add('hidden');
 
-                renderTable('usersTableContainer', [
-                    { label: 'Username', key: 'username', format: v => `<span class="font-bold text-white">${v}</span>` },
-                    { label: 'Email', key: 'email' },
-                    { label: 'Role', key: 'role', format: (v) => `<span class="badge ${v === 'USER' ? 'badge-blue' : 'badge-warning'}">${v}</span>` },
-                    { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
-                    { label: 'Tenant', key: 'tenantId' }
-                ], displayUsers, [
+                const actions = [
                     {
                         label: 'Edit',
-                        class: 'btn-outline btn-sm', // styling
+                        class: 'btn-outline btn-sm',
                         handler: 'editUser',
                         condition: (row) => {
                             if (hasRole('ADMIN')) {
@@ -165,7 +209,29 @@
                             return true;
                         }
                     }
-                ]);
+                ];
+
+                // Add Delete action for SUPER_ADMIN
+                if (hasRole('SUPER_ADMIN')) {
+                    actions.push({
+                        label: 'Delete',
+                        class: 'btn-danger btn-sm',
+                        handler: 'openDeleteModal',
+                        condition: (row) => {
+                            // Can't delete yourself
+                            if (row.username === ctx.username) return false;
+                            return true;
+                        }
+                    });
+                }
+
+                renderTable('usersTableContainer', [
+                    { label: 'Username', key: 'username', format: v => `<span class="font-bold text-white">${v}</span>` },
+                    { label: 'Email', key: 'email' },
+                    { label: 'Role', key: 'role', format: (v) => `<span class="badge ${v === 'USER' ? 'badge-blue' : 'badge-warning'}">${v}</span>` },
+                    { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
+                    { label: 'Tenant', key: 'tenantId' }
+                ], displayUsers, actions);
 
             } catch (err) {
                 loading.classList.add('hidden');
@@ -191,6 +257,37 @@
             document.getElementById('activeGroup').classList.remove('hidden');
             document.getElementById('createModal').classList.add('open');
         };
+
+        window.openDeleteModal = function (id) {
+            const user = window.usersData.find(u => u.id === id);
+            if (!user) return;
+
+            document.getElementById('deleteUserId').value = id;
+            document.getElementById('deleteError').classList.add('hidden');
+            document.getElementById('deleteModal').classList.add('open');
+        };
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('open');
+        }
+
+        async function confirmDelete() {
+            const id = document.getElementById('deleteUserId').value;
+            setLoading('deleteBtn', true, 'Deleting...');
+
+            try {
+                await apiCall(`/users/${id}`, 'DELETE');
+                closeDeleteModal();
+                showToast('User removed successfully.');
+                loadUsers();
+            } catch (err) {
+                const errDiv = document.getElementById('deleteError');
+                errDiv.textContent = err.message || 'Failed to delete user';
+                errDiv.classList.remove('hidden');
+            } finally {
+                setLoading('deleteBtn', false, 'Delete User');
+            }
+        }
 
         function openCreateModal() {
             document.getElementById('modalTitle').textContent = 'Create New User';
@@ -221,7 +318,6 @@
 
             if (isSuperAdmin) {
                 roleSelect.innerHTML += '<option value="ADMIN">Admin</option>';
-                roleSelect.innerHTML += '<option value="SUPER_ADMIN">Super Admin</option>';
             }
         }
 
@@ -234,7 +330,10 @@
             const id = document.getElementById('editUserId').value;
             const isEdit = !!id;
 
-            setLoading('saveBtn', true);
+            // 2. Loading State with Custom Text
+            const loadingText = isEdit ? 'Saving...' : 'Inviting user...';
+            setLoading('saveBtn', true, loadingText);
+
             document.getElementById('modalError').classList.add('hidden');
 
             try {
@@ -249,8 +348,6 @@
 
                     // Handle Status Update separately since it was removed from UserRequest
                     const isActive = document.getElementById('active').checked;
-                    // We should only call this if status actually changed, but for simplicity calling it is safe
-                    // or we check against window.usersData
                     const currentUser = window.usersData.find(u => u.id == id);
                     if (currentUser && currentUser.active !== isActive) {
                         await apiCall(`/users/${id}/status`, 'PATCH', { active: isActive });
@@ -262,12 +359,54 @@
                 closeCreateModal();
                 loadUsers();
 
+                // 3. Success Toast Notification
+                // Only show "Awaiting activation" if it was a new user creation or if relevant.
+                // The requirement specifically asks for "User invited successfully. Awaiting activation." on creation.
+                // For edit, we might want a different message or just default.
+                // Assuming refined logic for creation vs edit:
+                if (!isEdit) {
+                    const email = document.getElementById('email').value;
+                    showToast(`Invitation sent to ${email}. Awaiting activation.`);
+                } else {
+                    // Check if we just activated the user
+                    const isActive = document.getElementById('active').checked;
+                    const currentUser = window.usersData.find(u => u.id == id);
+                    if (currentUser && !currentUser.active && isActive) {
+                        const email = document.getElementById('email').value;
+                        showToast(`User ${email} activated successfully.`);
+                    }
+                }
+
             } catch (err) {
                 const errDiv = document.getElementById('modalError');
-                errDiv.textContent = err.message;
+                errDiv.textContent = err.message || 'An error occurred';
                 errDiv.classList.remove('hidden');
             } finally {
                 setLoading('saveBtn', false, 'Save User');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMessage');
+            if (toast && msgEl) {
+                msgEl.textContent = message;
+
+                // Show element first
+                toast.style.display = 'flex';
+
+                // Small delay to allow display:flex to apply before transition
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-y-10', 'opacity-0', 'pointer-events-none');
+                });
+
+                setTimeout(() => {
+                    toast.classList.add('translate-y-10', 'opacity-0', 'pointer-events-none');
+                    // Wait for transition (300ms) then hide
+                    setTimeout(() => {
+                        toast.style.display = 'none';
+                    }, 300);
+                }, 3000);
             }
         }
     </script>

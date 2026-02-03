@@ -25,6 +25,7 @@ public class NotificationEventListener {
     @Async
     @EventListener
     public void handleNotificationEvent(NotificationEvent event) {
+        logger.info("Received notification event: {}", event.getType());
         try {
             switch (event.getType()) {
                 case USER_INVITED:
@@ -48,6 +49,7 @@ public class NotificationEventListener {
     }
 
     private void handleUserInvited(NotificationEvent event) {
+        logger.info("Processing USER_INVITED for {}", event.getRecipientEmail());
         Map<String, Object> metadata = event.getMetadata();
         String name = (String) metadata.get("name");
         String token = (String) metadata.get("token");
@@ -63,6 +65,7 @@ public class NotificationEventListener {
                 .replace("{{tenantName}}", event.getTenantName())
                 .replace("{{inviteLink}}", inviteLink);
 
+        logger.info("Sending invite email to {}", event.getRecipientEmail());
         mailService.sendHtmlMail(event.getRecipientEmail(), "You're invited to join " + event.getTenantName(), htmlMsg);
     }
 

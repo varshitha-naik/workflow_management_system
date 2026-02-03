@@ -20,18 +20,21 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String usernameOrEmail) throws UsernameNotFoundException {
-        System.out.println("Loading user by username/email: " + usernameOrEmail);
-        User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
-                .orElseThrow(() -> {
-                    System.out.println("User not found: " + usernameOrEmail);
-                    return new UsernameNotFoundException("User not found with username or email: " + usernameOrEmail);
-                });
+        try {
+            User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
+                    .orElseThrow(() -> new UsernameNotFoundException("User not found: " + usernameOrEmail));
 
-        // if (user.getPassword() == null) {
-        // System.out.println("User password is null for: " + usernameOrEmail);
-        // throw new UsernameNotFoundException("User password is not set");
-        // }
+            // Force initialization of lazy-loaded tenant relationship within the
+            // transaction
+            if (user.getTenant() != null) {
+                user.getTenant().getName();
+            }
 
-        return UserPrincipal.create(user);
+            return UserPrincipal.create(user);
+        } catch (Exception e) {
+            System.err.println("Error loading user: " + usernameOrEmail);
+            e.printStackTrace();
+            throw e;
+        }
     }
 }

@@ -35,6 +35,7 @@ public class UserController {
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<org.springframework.data.domain.Page<UserResponse>> getAllUsers(
             @RequestParam(required = false) com.example.workflow_management_system.model.UserRole role,
+            @RequestParam(required = false) Boolean active,
             @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
         org.springframework.security.core.Authentication authentication = org.springframework.security.core.context.SecurityContextHolder
                 .getContext().getAuthentication();
@@ -42,7 +43,15 @@ public class UserController {
                 .getPrincipal();
 
         // Enforce implicit tenant scope for ALL roles including SUPER_ADMIN
-        return ResponseEntity.ok(userService.getUsersByTenant(currentUser.getTenantId(), role, pageable));
+        return ResponseEntity
+                .ok(userService.getUsersByTenant(currentUser.getTenantId(), role, active, pageable));
+    }
+
+    @DeleteMapping("/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteUser(@PathVariable @Min(1) Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")

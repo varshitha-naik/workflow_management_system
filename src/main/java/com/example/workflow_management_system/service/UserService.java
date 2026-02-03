@@ -125,6 +125,9 @@ public class UserService {
                 savedUser.getEmail(),
                 tenant.getName(),
                 metadata);
+        // Step 3: Add temporary log
+        org.slf4j.LoggerFactory.getLogger(UserService.class).info("INVITE EMAIL TRIGGERED for user {}",
+                savedUser.getEmail());
         eventPublisher.publishEvent(event);
 
         java.util.Map<String, Object> details = new java.util.HashMap<>();
@@ -214,6 +217,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<UserResponse> getUsersByTenant(Long tenantId,
             com.example.workflow_management_system.model.UserRole role,
+            Boolean active,
             org.springframework.data.domain.Pageable pageable) {
         com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(tenantId);
 
@@ -221,19 +225,47 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
 
-        if (role != null) {
-            return userRepository.findByTenant_IdAndRole(tenantId, role, pageable)
+        if (role != null && active != null) {
+            return userRepository.findByTenant_IdAndRoleAndActiveAndDeletedFalse(tenantId, role, active, pageable)
+                    .map(this::mapToResponse);
+        } else if (role != null) {
+            return userRepository.findByTenant_IdAndRoleAndDeletedFalse(tenantId, role, pageable)
+                    .map(this::mapToResponse);
+        } else if (active != null) {
+            return userRepository.findByTenant_IdAndActiveAndDeletedFalse(tenantId, active, pageable)
                     .map(this::mapToResponse);
         }
 
-        return userRepository.findByTenant_Id(tenantId, pageable)
+        return userRepository.findByTenant_IdAndDeletedFalse(tenantId, pageable)
                 .map(this::mapToResponse);
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<UserResponse> getUsersByTenant(Long tenantId,
             org.springframework.data.domain.Pageable pageable) {
-        return getUsersByTenant(tenantId, null, pageable);
+        return getUsersByTenant(tenantId, null, null, pageable);
+    }
+
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        com.example.workflow_management_system.security.SecurityUtils.validateTenantAccess(user.getTenant().getId());
+
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+        if (!"SUPER_ADMIN".equals(currentUser.getRole())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only SUPER_ADMIN can delete users.");
+        }
+
+        user.setDeleted(true);
+        // Deactivate user as well to prevent login (double safety)
+        user.setActive(false);
+        userRepository.save(user);
+
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        details.put("username", user.getUsername());
+        auditLogService.logEvent("USER", String.valueOf(user.getId()), "USER_DELETED", details);
     }
 
     @Transactional(readOnly = true)

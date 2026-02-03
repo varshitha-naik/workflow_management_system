@@ -20,12 +20,22 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                         @org.springframework.data.repository.query.Param("username") String username,
                         @org.springframework.data.repository.query.Param("email") String email);
 
-        org.springframework.data.domain.Page<User> findByTenant_Id(Long tenantId,
-                        org.springframework.data.domain.Pageable pageable);
-
+        // Updated queries to exclude deleted users
         boolean existsByTenant_IdAndRole(Long tenantId, com.example.workflow_management_system.model.UserRole role);
 
-        org.springframework.data.domain.Page<User> findByTenant_IdAndRole(Long tenantId,
+        org.springframework.data.domain.Page<User> findByTenant_IdAndDeletedFalse(Long tenantId,
+                        org.springframework.data.domain.Pageable pageable);
+
+        org.springframework.data.domain.Page<User> findByTenant_IdAndRoleAndDeletedFalse(Long tenantId,
                         com.example.workflow_management_system.model.UserRole role,
+                        org.springframework.data.domain.Pageable pageable);
+
+        org.springframework.data.domain.Page<User> findByTenant_IdAndActiveAndDeletedFalse(Long tenantId,
+                        boolean active,
+                        org.springframework.data.domain.Pageable pageable);
+
+        org.springframework.data.domain.Page<User> findByTenant_IdAndRoleAndActiveAndDeletedFalse(Long tenantId,
+                        com.example.workflow_management_system.model.UserRole role,
+                        boolean active,
                         org.springframework.data.domain.Pageable pageable);
 }
