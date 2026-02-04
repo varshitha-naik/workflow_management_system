@@ -17,7 +17,7 @@
             <main class="page-content">
                 <div class="flex justify-between items-center mb-6">
                     <div>
-                        <h1>User Access</h1>
+                        <h1>Team Members</h1>
                         <p class="text-muted">Manage team members and permissions</p>
                     </div>
                     <button class="btn btn-primary" onclick="openCreateModal()">
@@ -33,9 +33,7 @@
                     <div class="flex items-center gap-2">
                         <label class="font-bold text-sm text-muted">Role:</label>
                         <select id="roleFilter" class="form-control w-48">
-                            <option value="">All Roles</option>
-                            <option value="ADMIN">Admins</option>
-                            <option value="USER">Users</option>
+                            <!-- Populated by JS -->
                         </select>
                     </div>
 
@@ -147,12 +145,31 @@
             const ctx = requireAuth(['SUPER_ADMIN', 'ADMIN']);
             if (!ctx) return;
 
+            setupRoleFilter(); // New function call
             loadUsers();
 
             document.getElementById('roleFilter').addEventListener('change', () => loadUsers());
             document.getElementById('statusFilter').addEventListener('change', () => loadUsers());
 
             document.getElementById('createUserForm').addEventListener('submit', handleSave);
+        }
+
+        function setupRoleFilter() {
+            const roleSelect = document.getElementById('roleFilter');
+            roleSelect.innerHTML = '';
+
+            if (hasRole('SUPER_ADMIN')) {
+                // Super Admins see everything
+                roleSelect.innerHTML = `
+                    <option value="">All Roles</option>
+                    <option value="ADMIN">Admins</option>
+                    <option value="USER">Users</option>
+                `;
+            } else {
+                // Admins see only Users, and cannot change filter effectively other than maybe 'All' which implies filtered list anyway
+                // Requirement: "Remove ADMIN and SUPER_ADMIN options... Default Role filter should be Users"
+                roleSelect.innerHTML = `<option value="USER" selected>Users</option>`;
+            }
         }
 
         async function loadUsers() {

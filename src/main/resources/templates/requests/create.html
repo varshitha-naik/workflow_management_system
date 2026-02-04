@@ -56,7 +56,11 @@
                         <!-- Dynamic Payload Section -->
                         <div class="mb-6">
                             <div class="flex justify-between items-center mb-2">
-                                <label class="form-label m-0">Request Data</label>
+                                <div>
+                                    <label class="form-label m-0">Request Data</label>
+                                    <p id="requestDataHelper" class="text-xs text-muted mt-1">Select a workflow to load
+                                        required request fields.</p>
+                                </div>
                                 <button type="button" onclick="addField()" class="btn btn-outline btn-sm">+ Add
                                     Field</button>
                             </div>
@@ -72,11 +76,9 @@
                                             </path>
                                         </svg>
                                     </div>
-                                    <p class="text-sm text-muted">No data fields added yet.</p>
-                                    <p class="text-xs text-dim mt-1">Add fields to provide data like <span
-                                            class="text-white">Amount</span>, <span class="text-white">Date</span>, or
-                                        <span class="text-white">Reason</span>.
-                                    </p>
+                                    <p class="text-sm text-muted opacity-75">No data fields added yet.</p>
+                                    <p class="text-xs text-muted mt-1 opacity-50">Add fields to provide data like
+                                        Amount, Date, or Reason.</p>
                                 </div>
                             </div>
                         </div>
@@ -132,19 +134,28 @@
                 select.addEventListener('change', async (e) => {
                     const id = e.target.value;
                     const preview = document.getElementById('workflowPreview');
+                    const helper = document.getElementById('requestDataHelper');
 
                     if (!id) {
                         preview.classList.add('hidden');
+                        helper.classList.remove('hidden');
+                        clearFields(); // Reset fields if no workflow
                         validateForm();
                         return;
                     }
 
                     // Show loader or just fetch
                     preview.classList.remove('hidden');
+                    helper.classList.add('hidden');
                     const selectedOpt = e.target.selectedOptions[0];
-                    document.getElementById('previewTitle').textContent = selectedOpt.textContent;
+                    const workflowName = selectedOpt.textContent;
+
+                    document.getElementById('previewTitle').textContent = workflowName;
                     document.getElementById('previewDesc').textContent = selectedOpt.dataset.desc || 'No description';
                     document.getElementById('previewFlow').textContent = 'Loading steps...';
+
+                    // Auto-suggest fields based on workflow
+                    suggestFields(workflowName);
 
                     // Fetch steps
                     try {
@@ -178,7 +189,37 @@
             }
         }
 
-        function addField() {
+        function suggestFields(workflowName) {
+            clearFields();
+
+            const name = workflowName.toLowerCase();
+            if (name.includes('leave') || name.includes('vacation') || name.includes('off')) {
+                addField('Reason', '', 'e.g. Personal Leave');
+                addField('From Date', '', 'YYYY-MM-DD');
+                addField('To Date', '', 'YYYY-MM-DD');
+            } else if (name.includes('expense') || name.includes('reimbursement')) {
+                addField('Description', '', 'e.g. Flight tickets');
+                addField('Amount', '', '0.00');
+                addField('Date', '', 'YYYY-MM-DD');
+            } else if (name.includes('access') || name.includes('it request')) {
+                addField('System Name', '', 'e.g. AWS Production');
+                addField('Access Level', '', 'e.g. Read Only');
+                addField('Reason', '', 'e.g. Debugging issue #123');
+            } else {
+                // Default generic suggestion
+                addField('Reason', '', 'Why is this request needed?');
+            }
+        }
+
+        function clearFields() {
+            const container = document.getElementById('payloadFields');
+            // Remove all field rows but keep empty state div
+            const rows = container.querySelectorAll('.field-row');
+            rows.forEach(r => r.remove());
+            document.getElementById('emptyPayloadState').classList.remove('hidden');
+        }
+
+        function addField(key = '', value = '', placeholderValue = 'Value') {
             // Hide empty state
             document.getElementById('emptyPayloadState').classList.add('hidden');
 
@@ -188,17 +229,23 @@
             div.innerHTML = `
                 <div class="flex gap-2 items-start">
                     <div class="flex-1">
-                        <input type="text" placeholder="Key (e.g. Amount)" class="form-control field-key text-sm" required oninput="validateInput(this); validateForm()">
+                        <input type="text" placeholder="Key (e.g. Amount)" class="form-control field-key text-sm" value="${key}" required oninput="validateInput(this); validateForm()">
                         <small class="text-xs text-muted hint-text mt-1 block h-4"></small>
                     </div>
                     <div class="flex-1">
-                        <input type="text" placeholder="Value" class="form-control field-value text-sm" required oninput="validateForm()">
+                        <input type="text" placeholder="${placeholderValue}" class="form-control field-value text-sm" value="${value}" required oninput="validateForm()">
                     </div>
                     <button type="button" onclick="removeField(this)" class="btn btn-outline btn-sm text-error hover:border-error" title="Remove Field">×</button>
                 </div>
             `;
             container.appendChild(div);
-            div.querySelector('input').focus();
+
+            // Focus value if key provided, else focus key
+            if (key) {
+                div.querySelector('.field-value').focus();
+            } else {
+                div.querySelector('.field-key').focus();
+            }
 
             validateForm();
         }
@@ -231,15 +278,22 @@
 
         function validateForm() {
             const workflowSelected = !!document.getElementById('workflowId').value;
-            // Check if at least one field exists (keys don't necessarily need values to enable button, but let's require at least presence)
-            // Actually requirement says "At least one request field is added".
-            const hasFields = document.querySelectorAll('.field-row').length > 0;
+            const fieldRows = document.querySelectorAll('.field-row');
+            let hasValidFields = false;
 
-            // Additional check: valid inputs?
-            // Let's keep it simple: just need workflow + visible fields.
+            // Check if there is at least one field with a key entered
+            if (fieldRows.length > 0) {
+                for (const row of fieldRows) {
+                    const key = row.querySelector('.field-key').value.trim();
+                    if (key.length > 0) {
+                        hasValidFields = true;
+                        break;
+                    }
+                }
+            }
 
             const btn = document.getElementById('submitBtn');
-            btn.disabled = !(workflowSelected && hasFields);
+            btn.disabled = !(workflowSelected && hasValidFields);
         }
 
         function cancelRequest() {

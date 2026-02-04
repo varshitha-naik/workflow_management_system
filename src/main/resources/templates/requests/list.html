@@ -52,10 +52,18 @@
             container.innerHTML = '';
 
             try {
-                const requests = await apiCall('/requests');
+                const response = await apiCall('/requests');
                 loading.classList.add('hidden');
 
-                if (!requests || requests.length === 0) {
+                // Normalize: Handle Paginated 'Page' object vs List
+                let requests = [];
+                if (Array.isArray(response)) {
+                    requests = response;
+                } else if (response && Array.isArray(response.content)) {
+                    requests = response.content;
+                }
+
+                if (requests.length === 0) {
                     container.innerHTML = '<div class="p-8 text-center text-muted">No requests found.</div>';
                     return;
                 }

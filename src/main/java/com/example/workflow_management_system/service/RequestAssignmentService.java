@@ -182,6 +182,8 @@ public class RequestAssignmentService {
                 assignment.getRequest().getId(),
                 assignment.getAssignedTo().getId(),
                 assignment.getAssignedTo().getUsername(),
+                assignment.getRequest().getWorkflow().getName(),
+                assignment.getRequest().getCurrentStep().getStepName(),
                 assignment.getAssignedAt(),
                 assignment.getDueAt(),
                 assignment.getStatus());

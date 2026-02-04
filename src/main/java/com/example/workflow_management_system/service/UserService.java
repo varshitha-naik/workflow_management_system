@@ -225,6 +225,19 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
         }
 
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+        if ("ADMIN".equals(currentUser.getRole())) {
+            // Admins can strictly ONLY view USER role.
+            if (role != null && role != com.example.workflow_management_system.model.UserRole.USER) {
+                // If asking for ADMIN/SUPER_ADMIN, return empty page or throw access denied
+                // Returning empty is safer/cleaner for list views
+                return org.springframework.data.domain.Page.empty(pageable);
+            }
+            // Force role to USER for general queries
+            role = com.example.workflow_management_system.model.UserRole.USER;
+        }
+
         if (role != null && active != null) {
             return userRepository.findByTenant_IdAndRoleAndActiveAndDeletedFalse(tenantId, role, active, pageable)
                     .map(this::mapToResponse);
