@@ -2,17 +2,17 @@ package com.example.workflow_management_system.model;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "workflows", indexes = {
-        @Index(name = "idx_workflow_tenant", columnList = "tenant_id"),
-        @Index(name = "idx_workflow_active", columnList = "active")
+@Table(name = "workflow_custom_actions", indexes = {
+        @Index(name = "idx_workflow_action_tenant", columnList = "tenant_id"),
+        @Index(name = "idx_workflow_action_workflow", columnList = "workflow_id"),
+        @Index(name = "idx_workflow_action_active", columnList = "active")
 })
 @org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
-public class Workflow {
+public class WorkflowAction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,32 +21,28 @@ public class Workflow {
     @Column(nullable = false)
     private String name;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
+    @JoinColumn(name = "workflow_id", nullable = false)
+    private Workflow workflow;
+
+    @Column(name = "tenant_id", nullable = false)
+    private Long tenantId;
 
     @Column(nullable = false)
-    private boolean active;
+    private boolean active = true;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    public Workflow() {
+    public WorkflowAction() {
     }
 
-    public Workflow(String name, String description, Tenant tenant, boolean active) {
+    public WorkflowAction(String name, Workflow workflow, Long tenantId) {
         this.name = name;
-        this.description = description;
-        this.tenant = tenant;
-        this.active = active;
+        this.workflow = workflow;
+        this.tenantId = tenantId;
+        this.active = true;
     }
 
     public Long getId() {
@@ -65,20 +61,20 @@ public class Workflow {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
+    public Workflow getWorkflow() {
+        return workflow;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setWorkflow(Workflow workflow) {
+        this.workflow = workflow;
     }
 
-    public Tenant getTenant() {
-        return tenant;
+    public Long getTenantId() {
+        return tenantId;
     }
 
-    public void setTenant(Tenant tenant) {
-        this.tenant = tenant;
+    public void setTenantId(Long tenantId) {
+        this.tenantId = tenantId;
     }
 
     public boolean isActive() {
@@ -95,13 +91,5 @@ public class Workflow {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

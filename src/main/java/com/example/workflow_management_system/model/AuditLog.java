@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_audit_entity_id", columnList = "entity_id"),
         @Index(name = "idx_audit_timestamp", columnList = "timestamp")
 })
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class AuditLog {
 
     @Id

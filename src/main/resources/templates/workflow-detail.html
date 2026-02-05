@@ -38,10 +38,11 @@
 
                 <!-- Content Grid -->
                 <!-- Content Grid -->
+                <!-- Content Grid -->
                 <div class="workflow-grid">
                     <!-- Steps Column -->
                     <div class="card p-6">
-                        <h3 class="mb-4 text-lg">Workflow Steps</h3>
+                        <h3 class="mb-4 text-lg" id="stepsTitle">Workflow Steps</h3>
                         <div id="stepsContainer" class="mt-4">
                             <!-- Steps injected here -->
                             <div class="skeleton w-full h-12 mb-2"></div>
@@ -153,6 +154,11 @@
                     if (headerActions) headerActions.style.display = 'flex';
                     if (configActions) configActions.style.display = 'block';
                 }
+
+                if (hasRole('USER') && !hasRole(['ADMIN', 'SUPER_ADMIN'])) {
+                    const stepsTitle = document.getElementById('stepsTitle');
+                    if (stepsTitle) stepsTitle.textContent = 'Process Steps';
+                }
             }
             loadWorkflow();
             loadSteps();
@@ -185,6 +191,7 @@
 
         async function loadSteps() {
             const container = document.getElementById('stepsContainer');
+            // Check roles safely
             const canManage = hasRole(['ADMIN', 'SUPER_ADMIN']);
 
             try {
@@ -254,7 +261,8 @@
                 container.innerHTML = html;
 
             } catch (e) {
-                container.innerHTML = '<div class="text-error">Failed to load steps</div>';
+                console.error(e);
+                container.innerHTML = '<div class="text-error p-4 text-center">Unable to load steps. Please try again later.</div>';
             }
         }
 

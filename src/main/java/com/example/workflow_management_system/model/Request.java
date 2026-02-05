@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_request_status", columnList = "status"),
         @Index(name = "idx_request_created_at", columnList = "created_at")
 })
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "tenant_id = :tenantId")
 public class Request {
 
     @Id

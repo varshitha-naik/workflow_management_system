@@ -96,14 +96,12 @@
                 Assignments
             </a>
 
-            <a href="/workflows" class="nav-item">
+            <a href="/workflows" class="nav-item" id="nav-workflows">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M22 6h-6l-2-2H2v16h20V6zm-2 12H4V8h16v10z" />
                 </svg>
                 Workflows
             </a>
-
-
         </nav>
 
         <a href="/profile" class="nav-item mt-4">
@@ -194,6 +192,15 @@
                     document.getElementById('nav-new-request').style.display = 'flex';
                     document.getElementById('nav-my-requests').style.display = 'flex';
                     document.getElementById('nav-assignments').style.display = 'flex';
+
+                    // Rename Workflows to Processes for USER
+                    const wfNav = document.getElementById('nav-workflows');
+                    if (wfNav) {
+                        // Preserve icon by updating text node only or innerHTML careful reconstruction
+                        // Easiest is to replace the text node at the end
+                        const iconHtml = wfNav.querySelector('svg').outerHTML;
+                        wfNav.innerHTML = iconHtml + ' Processes';
+                    }
                 }
 
                 // Update Header Info

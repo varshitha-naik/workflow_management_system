@@ -66,17 +66,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.clearContext();
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
+                    // Set TenantContext
+                    if (userDetails instanceof UserPrincipal) {
+                        UserPrincipal principal = (UserPrincipal) userDetails;
+                        if (principal.getTenantId() != null) {
+                            TenantContext.setTenantId(principal.getTenantId());
+                            logger.info("TenantContext set to: {}", principal.getTenantId());
+                        }
+                    }
+
                     logger.info("SecurityContext set for user: {} with authorities: {}", username,
                             userDetails.getAuthorities());
                 }
             } else {
                 logger.info("No token found or token extraction failed");
             }
+            filterChain.doFilter(request, response);
         } catch (Exception e) {
             logger.error("Authentication error: {}", e.getMessage(), e);
+            // Even if auth fails, we should let filter chain proceed or return 401.
+            // Following original logic, we call chain, but arguably if exception it might
+            // stop.
+            // But usually we should rethrow or handle.
+            // Original code didn't clear context in finally.
+            throw new ServletException("Authentication failed", e); // Ensure exception propagates if needed, or handle
+                                                                    // delicately
+        } finally {
+            TenantContext.clear();
         }
-
-        filterChain.doFilter(request, response);
     }
 
     private String getTokenFromRequest(HttpServletRequest request) {

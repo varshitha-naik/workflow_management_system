@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 }, indexes = {
         @Index(name = "idx_workflow_step_workflow", columnList = "workflow_id")
 })
+@org.hibernate.annotations.Filter(name = "tenantFilter", condition = "workflow_id IN (select w.id from workflows w where w.tenant_id = :tenantId)")
 public class WorkflowStep {
 
     @Id

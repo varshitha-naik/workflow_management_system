@@ -20,9 +20,9 @@
                 <div class="card max-w-2xl mx-auto">
                     <form id="createRequestForm">
                         <div class="form-group mb-6">
-                            <label class="form-label">Select Workflow</label>
-                            <select id="workflowId" class="form-control" required>
-                                <option value="">Loading workflows...</option>
+                            <label class="form-label" id="selectionLabel">Select Action</label>
+                            <select id="actionId" class="form-control" required>
+                                <option value="">Loading actions...</option>
                             </select>
 
                             <!-- Workflow Preview -->
@@ -58,11 +58,11 @@
                             <div class="flex justify-between items-center mb-2">
                                 <div>
                                     <label class="form-label m-0">Request Data</label>
-                                    <p id="requestDataHelper" class="text-xs text-muted mt-1">Select a workflow to load
-                                        required request fields.</p>
+                                    <p id="requestDataHelper" class="text-xs text-muted mt-1">Choose what you want to
+                                        request.</p>
                                 </div>
-                                <button type="button" onclick="addField()" class="btn btn-outline btn-sm">+ Add
-                                    Field</button>
+                                <button type="button" id="addFieldBtn" onclick="addField()"
+                                    class="btn btn-outline btn-sm" style="display:none">+ Add Field</button>
                             </div>
                             <div id="payloadFields" class="space-y-3 min-h-[100px]">
                                 <!-- Empty State -->
@@ -107,86 +107,113 @@
             const ctx = requireAuth(['USER', 'ADMIN', 'SUPER_ADMIN']);
             if (!ctx) return;
 
-            loadWorkflows();
+            loadActions();
             document.getElementById('createRequestForm').addEventListener('submit', handleSubmit);
+            document.getElementById('actionId').addEventListener('change', handleActionChange);
 
-            // Global validation listener
-            document.getElementById('workflowId').addEventListener('change', validateForm);
+            // Hide/Show Add Field based on role
+            if (hasRole(['ADMIN', 'SUPER_ADMIN'])) {
+                document.getElementById('addFieldBtn').style.display = '';
+            }
         }
 
-        async function loadWorkflows() {
-            const select = document.getElementById('workflowId');
-            try {
-                const workflows = await apiCall('/workflows');
+        let actionsCache = [];
 
-                select.innerHTML = '<option value="">-- Select a Workflow --</option>';
-                workflows.forEach(w => {
-                    if (w.active) {
+        async function loadActions() {
+            const select = document.getElementById('actionId');
+            try {
+                // Fetch active actions for USER
+                const actions = await apiCall('/request-actions/active');
+                actionsCache = actions || [];
+
+                select.innerHTML = '<option value="">-- Select an Action --</option>';
+                actionsCache.forEach(a => {
+                    if (a.active) {
                         const opt = document.createElement('option');
-                        opt.value = w.id;
-                        opt.textContent = w.name;
-                        // Store basic info but we will fetch details for full preview
-                        opt.dataset.desc = w.description || '';
+                        opt.value = a.id;
+                        opt.textContent = a.name;
+                        // Determine workflow ID from action
+                        // Assuming action response has 'workflowId'
+                        opt.dataset.workflowId = a.workflowId;
                         select.appendChild(opt);
                     }
                 });
 
-                select.addEventListener('change', async (e) => {
-                    const id = e.target.value;
-                    const preview = document.getElementById('workflowPreview');
-                    const helper = document.getElementById('requestDataHelper');
-
-                    if (!id) {
-                        preview.classList.add('hidden');
-                        helper.classList.remove('hidden');
-                        clearFields(); // Reset fields if no workflow
-                        validateForm();
-                        return;
-                    }
-
-                    // Show loader or just fetch
-                    preview.classList.remove('hidden');
-                    helper.classList.add('hidden');
-                    const selectedOpt = e.target.selectedOptions[0];
-                    const workflowName = selectedOpt.textContent;
-
-                    document.getElementById('previewTitle').textContent = workflowName;
-                    document.getElementById('previewDesc').textContent = selectedOpt.dataset.desc || 'No description';
-                    document.getElementById('previewFlow').textContent = 'Loading steps...';
-
-                    // Auto-suggest fields based on workflow
-                    suggestFields(workflowName);
-
-                    // Fetch steps
-                    try {
-                        const steps = await apiCall(`/workflows/${id}/steps`);
-                        const sorted = (steps || []).sort((a, b) => a.stepOrder - b.stepOrder);
-
-                        document.getElementById('previewStepsCount').textContent = sorted.length;
-
-                        // Build flow summary
-                        if (sorted.length === 0) {
-                            document.getElementById('previewFlow').textContent = 'No steps defined';
-                        } else {
-                            const flowStr = sorted.map(s => {
-                                let label = s.requiredRole;
-                                if (s.autoApprove) label += ' (Auto)';
-                                return label;
-                            }).join(' → ');
-                            document.getElementById('previewFlow').textContent = flowStr;
-                        }
-                    } catch (err) {
-                        console.error("Failed to load steps", err);
-                        document.getElementById('previewFlow').textContent = 'Error loading steps';
-                    }
-
-                    validateForm();
-                });
+                if (actionsCache.length === 0) {
+                    select.innerHTML = '<option value="">No actions available</option>';
+                    select.disabled = true;
+                }
 
             } catch (err) {
-                select.innerHTML = '<option value="">Error loading workflows</option>';
+                select.innerHTML = '<option value="">Error loading actions</option>';
                 console.error(err);
             }
+        }
+
+        async function handleActionChange(e) {
+            const actionId = e.target.value;
+            const preview = document.getElementById('workflowPreview');
+            const helper = document.getElementById('requestDataHelper');
+            const helperContainer = document.getElementById('emptyPayloadState');
+
+            if (!actionId) {
+                preview.classList.add('hidden');
+                helper.classList.remove('hidden');
+                clearFields();
+                validateForm();
+                return;
+            }
+
+            // Find selected action
+            const action = actionsCache.find(a => a.id == actionId);
+            if (!action) return;
+
+            const workflowId = action.workflowId; // from cache
+
+            // Show preview logic (reused but adapted)
+            // We still need workflow details for the preview, so we fetch workflow details separately?
+            // Or just hide detailed workflow preview from USER?
+            // "User MUST NOT see workflow name directly" -> So maybe we show Action Name in preview?
+            // Or just simplified preview.
+
+            // Let's keep fetching workflow steps for the "Flow" preview but rename title to Action Name? 
+            // The constraint says "User MUST NOT see workflow name directly". 
+
+            preview.classList.remove('hidden');
+            helper.classList.add('hidden');
+
+            document.getElementById('previewTitle').textContent = action.name; // Show Action Name
+            document.getElementById('previewDesc').textContent = 'Action bound to underlying workflow'; // Generic desc
+            document.getElementById('previewFlow').textContent = 'Loading steps...';
+
+            suggestFields(action.name); // Suggest based on Action name now
+
+            // Fetch steps using workflowId
+            try {
+                const steps = await apiCall(`/workflows/${workflowId}/steps`);
+                const sorted = (steps || []).sort((a, b) => a.stepOrder - b.stepOrder);
+
+                document.getElementById('previewStepsCount').textContent = sorted.length;
+
+                if (sorted.length === 0) {
+                    document.getElementById('previewFlow').textContent = 'No steps defined';
+                } else {
+                    const flowStr = sorted.map(s => {
+                        let label = s.requiredRole;
+                        if (s.autoApprove) label += ' (Auto)';
+                        return label;
+                    }).join(' → ');
+                    document.getElementById('previewFlow').textContent = flowStr;
+                }
+            } catch (err) {
+                console.error("Failed to load steps", err);
+                // If user is not allowed to see steps? The requirement "View ordered steps" was in previous prompt.
+                // Current prompt says "User should only see business-friendly actions".
+                // But let's assume if it fails, just generic message.
+                document.getElementById('previewFlow').textContent = 'Standard processing flow';
+            }
+
+            validateForm();
         }
 
         function suggestFields(workflowName) {
@@ -277,7 +304,7 @@
         }
 
         function validateForm() {
-            const workflowSelected = !!document.getElementById('workflowId').value;
+            const actionSelected = !!document.getElementById('actionId').value;
             const fieldRows = document.querySelectorAll('.field-row');
             let hasValidFields = false;
 
@@ -293,11 +320,11 @@
             }
 
             const btn = document.getElementById('submitBtn');
-            btn.disabled = !(workflowSelected && hasValidFields);
+            btn.disabled = !(actionSelected && hasValidFields);
         }
 
         function cancelRequest() {
-            const hasData = document.querySelectorAll('.field-row').length > 0 || document.getElementById('workflowId').value;
+            const hasData = document.querySelectorAll('.field-row').length > 0 || document.getElementById('actionId').value;
             if (hasData) {
                 if (!confirm('Discard this request? All entered data will be lost.')) return;
             }
@@ -312,8 +339,12 @@
             const successDiv = document.getElementById('formSuccess');
 
             try {
-                const workflowId = document.getElementById('workflowId').value;
-                if (!workflowId) throw new Error("Please select a workflow");
+                const actionId = document.getElementById('actionId').value;
+                if (!actionId) throw new Error("Please select an action");
+
+                const action = actionsCache.find(a => a.id == actionId);
+                const workflowId = action ? action.workflowId : null;
+                if (!workflowId) throw new Error("Invalid action configuration");
 
                 // Construct Payload
                 const payload = {};

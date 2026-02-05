@@ -17,10 +17,10 @@
             <main class="page-content">
                 <div class="flex justify-between items-center mb-6">
                     <div>
-                        <h1>Global Workflows</h1>
-                        <p class="text-muted">Manage and orchestrate business processes</p>
+                        <h1 id="pageTitle">Global Workflows</h1>
+                        <p class="text-muted" id="pageDesc">Manage and orchestrate business processes</p>
                     </div>
-                    <button onclick="openModal()" class="btn btn-primary">
+                    <button onclick="openModal()" class="btn btn-primary" id="btnCreateWorkflow" style="display:none">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                         </svg>
@@ -29,6 +29,7 @@
                 </div>
 
                 <div class="flex flex-wrap gap-4 mb-6">
+                    <!-- ... stats ... -->
                     <div class="card p-3 flex items-center gap-3 mb-0" style="min-width: 140px;">
                         <div class="p-2 rounded-full bg-primary/10 bg-opacity-10 text-primary">
                             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,6 +131,12 @@
         async function loadWorkflows() {
             const container = document.getElementById('workflowsTable');
             try {
+                // Check Role for Title
+                if (hasRole('USER') && !hasRole(['ADMIN', 'SUPER_ADMIN'])) {
+                    document.getElementById('pageTitle').textContent = 'Processes';
+                    document.getElementById('pageDesc').textContent = 'View available business processes';
+                }
+
                 const data = await apiCall('/workflows');
                 const workflows = data || [];
 
@@ -161,7 +168,7 @@
                 const canManage = hasRole(['ADMIN', 'SUPER_ADMIN']);
 
                 // Hide Create Button for non-admins
-                const createBtn = document.querySelector('button[onclick="openModal()"]');
+                const createBtn = document.getElementById('btnCreateWorkflow');
                 if (createBtn) {
                     createBtn.style.display = canManage ? 'flex' : 'none';
                 }
