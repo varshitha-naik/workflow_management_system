@@ -157,6 +157,23 @@
                     return "Just now";
                 };
 
+                const ctx = getAuthContext();
+                const canManage = hasRole(['ADMIN', 'SUPER_ADMIN']);
+
+                // Hide Create Button for non-admins
+                const createBtn = document.querySelector('button[onclick="openModal()"]');
+                if (createBtn) {
+                    createBtn.style.display = canManage ? 'flex' : 'none';
+                }
+
+                // Define actions based on role
+                const actions = [];
+                actions.push({ label: 'View', class: 'btn-outline btn-sm', handler: 'viewWorkflow' });
+
+                if (canManage) {
+                    actions.push({ label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' });
+                }
+
                 renderTable('workflowsTable', [
                     { label: 'Name', key: 'name' },
                     { label: 'Description', key: 'description' },
@@ -170,10 +187,7 @@
                         key: 'updatedAt',
                         format: (v, row) => timeAgo(v || row.createdAt)
                     }
-                ], workflows, [
-                    { label: 'Design', class: 'btn-primary btn-sm', handler: 'viewWorkflow' },
-                    { label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' }
-                ], 'viewWorkflow');
+                ], workflows, actions, 'viewWorkflow');
 
             } catch (e) {
                 container.innerHTML = `<div class="p-4 text-center text-error">Failed to load workflows</div>`;

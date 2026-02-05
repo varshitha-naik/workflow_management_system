@@ -466,13 +466,42 @@ tr:nth-child(even) td {
     display: flex;
 }
 
+.flex-col {
+    flex-direction: column;
+}
+
+.flex-row {
+    flex-direction: row;
+}
+
 .items-center {
     align-items: center;
+}
+
+.items-start {
+    align-items: flex-start;
+}
+
+.items-end {
+    align-items: flex-end;
 }
 
 .justify-between {
     justify-content: space-between;
 }
+
+.justify-center {
+    justify-content: center;
+}
+
+.justify-start {
+    justify-content: flex-start;
+}
+
+.justify-end {
+    justify-content: flex-end;
+}
+
 
 .gap-2 {
     gap: 0.5rem;
@@ -672,6 +701,7 @@ select:focus-visible {
     gap: 0.5rem;
     opacity: 0.4;
     transition: opacity 0.2s;
+    flex-shrink: 0;
 }
 
 .step-card:hover .step-actions,
@@ -798,6 +828,21 @@ select:focus-visible {
 
 .mt-1 {
     margin-top: 0.25rem;
+}
+
+/* Workflow Specific Grid */
+.workflow-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: 1fr;
+    /* Default to single column mobile */
+}
+
+@media (min-width: 1024px) {
+    .workflow-grid {
+        grid-template-columns: 3fr 1fr;
+        /* 3:1 ratio on large screens for more breathing room */
+    }
 }
 
 .mt-2 {
@@ -1142,8 +1187,70 @@ select:focus-visible {
     font-weight: 600;
 }
 
+/* Utilities */
+.min-w-0 {
+    min-width: 0;
+}
+
+.flex-1 {
+    flex: 1 1 0%;
+}
+
 .data-icon {
     opacity: 0.7;
     width: 14px;
     height: 14px;
+}
+
+/* Additional Utilities */
+.m-0 {
+    margin: 0;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
+
+.mb-6 {
+    margin-bottom: 1.5rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
+
+.text-md {
+    font-size: 1rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+}
+
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.shadow-sm {
+    box-shadow: var(--shadow-sm);
 }

@@ -29,14 +29,9 @@
                 Dashboard
             </a>
 
-            <a href="/workflows" class="nav-item">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M22 6h-6l-2-2H2v16h20V6zm-2 12H4V8h16v10z" />
-                </svg>
-                Workflows
-            </a>
 
-            <a href="/workflow-steps" class="nav-item">
+
+            <a href="/workflow-steps" class="nav-item" id="nav-workflow-steps" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
                 </svg>
@@ -63,14 +58,16 @@
             <!-- Request Management (Admin) -->
             <a href="/requests" class="nav-item" id="nav-all-requests" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+                    <path
+                        d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
                 </svg>
                 All Requests
             </a>
 
             <a href="/approvals/pending" class="nav-item" id="nav-approvals" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    <path
+                        d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
                 Pending Approvals
             </a>
@@ -78,24 +75,34 @@
             <!-- User Links -->
             <a href="/requests/new" class="nav-item" id="nav-new-request" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                    <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z" />
                 </svg>
                 New Request
             </a>
 
             <a href="/my-requests" class="nav-item" id="nav-my-requests" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14 c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z"/>
+                    <path
+                        d="M19 3H5c-1.1 0-2 .9-2 2v14 c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm6 12H6v-1c0-2 4-3.1 6-3.1s6 1.1 6 3.1v1z" />
                 </svg>
                 My Requests
             </a>
 
             <a href="/assignments" class="nav-item" id="nav-assignments" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
                 Assignments
             </a>
+
+            <a href="/workflows" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M22 6h-6l-2-2H2v16h20V6zm-2 12H4V8h16v10z" />
+                </svg>
+                Workflows
+            </a>
+
 
         </nav>
 
@@ -176,11 +183,13 @@
                         document.getElementById('nav-tenants').style.display = 'flex';
                     }
                     document.getElementById('nav-users').style.display = 'flex';
+                    document.getElementById('nav-workflow-steps').style.display = 'flex';
                 } else if (hasRole('ADMIN')) {
                     document.getElementById('nav-users').style.display = 'flex';
                     document.getElementById('nav-all-requests').style.display = 'flex';
                     document.getElementById('nav-approvals').style.display = 'flex';
                     document.getElementById('nav-assignments').style.display = 'flex';
+                    document.getElementById('nav-workflow-steps').style.display = 'flex';
                 } else if (hasRole('USER')) {
                     document.getElementById('nav-new-request').style.display = 'flex';
                     document.getElementById('nav-my-requests').style.display = 'flex';

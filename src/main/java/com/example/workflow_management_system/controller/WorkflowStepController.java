@@ -38,6 +38,14 @@ public class WorkflowStepController {
         return ResponseEntity.ok(workflowStepService.getStepsByWorkflow(workflowId));
     }
 
+    @PutMapping("/workflows/{workflowId}/steps/reorder")
+    public ResponseEntity<Void> reorderSteps(
+            @PathVariable @Min(1) Long workflowId,
+            @RequestBody List<Long> orderedStepIds) {
+        workflowStepService.reorderSteps(workflowId, orderedStepIds);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/workflow-steps/{id}")
     public ResponseEntity<WorkflowStepResponse> getStepById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(workflowStepService.getStepById(id));

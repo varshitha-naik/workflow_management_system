@@ -133,6 +133,56 @@ public class WorkflowStepService {
         auditLogService.logEvent("WORKFLOW_STEP", String.valueOf(id), "WORKFLOW_STEP_DELETED", null);
     }
 
+    @CacheEvict(value = "workflowSteps", allEntries = true)
+    public void reorderSteps(Long workflowId, List<Long> orderedStepIds) {
+        checkWriteAccess();
+
+        Workflow workflow = workflowRepository.findById(workflowId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Workflow not found"));
+
+        SecurityUtils.validateTenantAccess(workflow.getTenant().getId());
+
+        List<WorkflowStep> steps = workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflowId);
+
+        if (steps.size() != orderedStepIds.size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Step count mismatch");
+        }
+
+        // Create a map for quick lookup
+        java.util.Map<Long, WorkflowStep> stepMap = steps.stream()
+                .collect(Collectors.toMap(WorkflowStep::getId, step -> step));
+
+        // First pass: verify all IDs belong to workflow and set to temporary negative
+        // order
+        // to avoid unique constraint collisions during swap
+        for (int i = 0; i < orderedStepIds.size(); i++) {
+            Long stepId = orderedStepIds.get(i);
+            WorkflowStep step = stepMap.get(stepId);
+            if (step == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Step ID " + stepId + " does not belong to workflow " + workflowId);
+            }
+            // Use negative values: -1, -2, -3... to guarantee uniqueness and no collision
+            // with existing positive values
+            step.setStepOrder(-(i + 1));
+        }
+
+        // Persist temporary state
+        workflowStepRepository.saveAll(steps);
+        workflowStepRepository.flush();
+
+        // Second pass: set to final positive order
+        for (int i = 0; i < orderedStepIds.size(); i++) {
+            Long stepId = orderedStepIds.get(i);
+            WorkflowStep step = stepMap.get(stepId);
+            step.setStepOrder(i + 1);
+        }
+
+        workflowStepRepository.saveAll(steps);
+
+        auditLogService.logEvent("WORKFLOW", String.valueOf(workflowId), "WORKFLOW_STEPS_REORDERED", null);
+    }
+
     private void checkWriteAccess() {
         UserPrincipal currentUser = SecurityUtils.getCurrentUser();
         if ("USER".equals(currentUser.getRole())) {
