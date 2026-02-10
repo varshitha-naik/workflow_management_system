@@ -28,6 +28,10 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
             AuthenticationException authException)
             throws IOException, ServletException {
 
+        org.slf4j.LoggerFactory.getLogger(JwtAuthenticationEntryPoint.class).error(
+                "LIVE_TRACE: JwtAuthenticationEntryPoint - Unauthorized Access - URI: {} - Message: {}",
+                request.getRequestURI(), authException.getMessage());
+
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 
@@ -35,7 +39,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                 LocalDateTime.now(),
                 HttpStatus.UNAUTHORIZED.value(),
                 HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                "Authentication Failed",
+                "Authentication Failed: " + authException.getMessage(),
                 request.getRequestURI());
 
         objectMapper.writeValue(response.getWriter(), errorResponse);

@@ -24,12 +24,11 @@ public class JwtTokenProvider {
         Date expireDate = new Date(currentDate.getTime() + jwtExpirationDate);
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        System.out.println("Generating Token for: " + username + " with Role: " + userPrincipal.getRole());
 
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", userPrincipal.getRole())
-                .claim("tenantId", userPrincipal.getTenantId())
+                .claim("tenantId", userPrincipal.getTenantId() != null ? userPrincipal.getTenantId() : null)
                 .claim("tenantName", userPrincipal.getTenantName())
                 .setIssuedAt(currentDate)
                 .setExpiration(expireDate)
@@ -38,7 +37,7 @@ public class JwtTokenProvider {
     }
 
     private Key key() {
-        return Keys.hmacShaKeyFor(io.jsonwebtoken.io.Decoders.BASE64.decode(jwtSecret));
+        return Keys.hmacShaKeyFor(java.util.HexFormat.of().parseHex(jwtSecret));
     }
 
     public String getUsername(String token) {

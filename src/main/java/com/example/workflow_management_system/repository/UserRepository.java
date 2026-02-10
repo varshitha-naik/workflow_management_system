@@ -11,7 +11,11 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
         boolean existsByUsername(String username);
 
+        java.util.Optional<User> findByUsername(String username);
+
         boolean existsByEmail(String email);
+
+        java.util.Optional<User> findByEmail(String email);
 
         List<User> findByTenant_Id(Long tenantId);
 
@@ -38,4 +42,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                         com.example.workflow_management_system.model.UserRole role,
                         boolean active,
                         org.springframework.data.domain.Pageable pageable);
+
+        boolean existsByRoleAndTenantIsNull(com.example.workflow_management_system.model.UserRole role);
+
+        List<User> findByRoleAndTenantIsNull(com.example.workflow_management_system.model.UserRole role);
 }

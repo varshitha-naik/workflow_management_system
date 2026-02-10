@@ -1,0 +1,8 @@
+TOKEN_PAYLOAD: {"sub":"global_superadmin","role":"SUPER_ADMIN","iat":1770730044,"exp":1770733644}
+TENANT_CREATION: SUCCESS
+{
+    "id":  16,
+    "name":  "SuperTenantTest",
+    "status":  "ACTIVE",
+    "createdAt":  "2026-02-10T18:57:24.746"
+}

@@ -44,8 +44,8 @@ public class SecurityUtils {
 
     public static void validateTenantAccess(Long tenantId) {
         UserPrincipal currentUser = getCurrentUser();
-        // Super Admins can access any tenant
-        if ("SUPER_ADMIN".equals(currentUser.getRole())) {
+        // Global Admins can access any tenant
+        if ("GLOBAL_ADMIN".equals(currentUser.getRole())) {
             return;
         }
 

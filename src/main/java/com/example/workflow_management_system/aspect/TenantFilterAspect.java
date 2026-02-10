@@ -39,6 +39,7 @@ public class TenantFilterAspect {
     @Around("serviceLayer() || transactionalMethod()")
     public Object enableTenantFilter(ProceedingJoinPoint joinPoint) throws Throwable {
         Long tenantId = TenantContext.getTenantId();
+        logger.debug("DEBUG: TenantFilterAspect - Intercepting method. TenantContext ID: {}", tenantId);
 
         if (tenantId != null) {
             try {

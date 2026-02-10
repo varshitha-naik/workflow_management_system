@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -37,24 +36,37 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        try {
-            logger.info("Incoming request URI: {}", request.getRequestURI());
+        logger.info("LIVE_TRACE: JwtAuthenticationFilter - Entering doFilterInternal for URI: {}",
+                request.getRequestURI());
 
-            String authHeader = request.getHeader("Authorization");
-            logger.info("Authorization header: {}", authHeader);
+        try {
+            // 5. Verify token parsing
+            String header = request.getHeader("Authorization");
+            logger.info("LIVE_TRACE: JwtAuthenticationFilter - Authorization Header: {}", header);
 
             String token = getTokenFromRequest(request);
-            logger.info("Token extracted: {}", (token != null));
+            logger.info("LIVE_TRACE: JwtAuthenticationFilter - Token extracted: {}",
+                    (token != null ? "YES (Length: " + token.length() + ")" : "NO"));
 
             if (StringUtils.hasText(token)) {
-                boolean isValid = jwtTokenProvider.validateToken(token);
-                logger.info("Token validation result: {}", isValid);
+                boolean isValid = false;
+                try {
+                    isValid = jwtTokenProvider.validateToken(token);
+                } catch (Exception e) {
+                    logger.error("LIVE_TRACE: JwtAuthenticationFilter - Validation Exception: ", e);
+                }
+
+                logger.info("LIVE_TRACE: JwtAuthenticationFilter - Token Valid: {}", isValid);
 
                 if (isValid) {
                     String username = jwtTokenProvider.getUsername(token);
-                    logger.info("Extracted username: {}", username);
+                    logger.info("LIVE_TRACE: JwtAuthenticationFilter - Username from token: {}", username);
 
                     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                    logger.info("LIVE_TRACE: JwtAuthenticationFilter - UserDetails Loaded: {}",
+                            userDetails.getUsername());
+                    logger.info("LIVE_TRACE: JwtAuthenticationFilter - Authorities from UserDetails: {}",
+                            userDetails.getAuthorities());
 
                     UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -66,31 +78,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.clearContext();
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 
+                    // 6. Verify AuthenticationContext is set
+                    logger.info("LIVE_TRACE: JwtAuthenticationFilter - SecurityContext Updated. Principal: {}",
+                            SecurityContextHolder.getContext().getAuthentication().getName());
+                    logger.info("LIVE_TRACE: JwtAuthenticationFilter - Context Authorities: {}",
+                            SecurityContextHolder.getContext().getAuthentication().getAuthorities());
+
                     // Set TenantContext
                     if (userDetails instanceof UserPrincipal) {
                         UserPrincipal principal = (UserPrincipal) userDetails;
                         if (principal.getTenantId() != null) {
                             TenantContext.setTenantId(principal.getTenantId());
-                            logger.info("TenantContext set to: {}", principal.getTenantId());
+                            logger.info("LIVE_TRACE: JwtAuthenticationFilter - TenantContext SET: {}",
+                                    principal.getTenantId());
+                        } else {
+                            logger.info(
+                                    "LIVE_TRACE: JwtAuthenticationFilter - TenantContext: GLOBAL USER (No Tenant ID)");
+                            TenantContext.clear(); // Explicitly clear to be safe
                         }
                     }
-
-                    logger.info("SecurityContext set for user: {} with authorities: {}", username,
-                            userDetails.getAuthorities());
+                } else {
+                    logger.warn("LIVE_TRACE: JwtAuthenticationFilter - Token INVALID");
                 }
             } else {
-                logger.info("No token found or token extraction failed");
+                logger.info("LIVE_TRACE: JwtAuthenticationFilter - No Token Found in request");
             }
+            logger.info("================ AUTHENTICATION FILTER END ================");
+
             filterChain.doFilter(request, response);
+
         } catch (Exception e) {
             logger.error("Authentication error: {}", e.getMessage(), e);
-            // Even if auth fails, we should let filter chain proceed or return 401.
-            // Following original logic, we call chain, but arguably if exception it might
-            // stop.
-            // But usually we should rethrow or handle.
-            // Original code didn't clear context in finally.
-            throw new ServletException("Authentication failed", e); // Ensure exception propagates if needed, or handle
-                                                                    // delicately
+            throw new ServletException("Authentication failed", e);
         } finally {
             TenantContext.clear();
         }
@@ -98,7 +117,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String getTokenFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.toLowerCase().startsWith("bearer ")) {
             return bearerToken.substring(7);
         }
         return null;

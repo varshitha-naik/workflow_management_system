@@ -67,7 +67,9 @@ public class RequestController {
                 .getCurrentUser();
 
         if (currentUser.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ROLE_SUPER_ADMIN"))) {
+                .anyMatch(a -> a.getAuthority().equals("ROLE_TENANT_MANAGER")
+                        || a.getAuthority().equals("ROLE_TENANT_ADMIN")
+                        || a.getAuthority().equals("ROLE_GLOBAL_ADMIN"))) {
             requests = requestService.getAllRequestsForExport(status, workflowId, createdByUserId, fromDate, toDate);
         } else {
             // Users export their own requests with applied filters

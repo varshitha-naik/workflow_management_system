@@ -27,19 +27,19 @@ public class WorkflowActionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<WorkflowActionResponse> createAction(@Valid @RequestBody WorkflowActionRequest request) {
         return new ResponseEntity<>(workflowActionService.createAction(request), HttpStatus.CREATED);
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<List<WorkflowActionResponse>> getAllActions() {
         return ResponseEntity.ok(workflowActionService.getAllActions());
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN', 'SUPER_ADMIN')") // User needs this for UI
+    @PreAuthorize("hasAnyRole('USER', 'GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')") // User needs this for UI
     public ResponseEntity<List<WorkflowActionResponse>> getActiveActions() {
         return ResponseEntity.ok(workflowActionService.getActiveActions());
     }

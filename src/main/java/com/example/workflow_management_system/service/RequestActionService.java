@@ -179,16 +179,20 @@ public class RequestActionService {
     }
 
     private boolean hasPermission(String userRoleStr, UserRole requiredRole) {
-        // Hierarchy: SUPER_ADMIN > ADMIN > USER
-        int userLevel = getRoleLevel(UserRole.valueOf(userRoleStr));
-        int requiredLevel = getRoleLevel(requiredRole);
-        return userLevel >= requiredLevel;
+        try {
+            int userLevel = getRoleLevel(UserRole.valueOf(userRoleStr));
+            int requiredLevel = getRoleLevel(requiredRole);
+            return userLevel >= requiredLevel;
+        } catch (IllegalArgumentException | NullPointerException e) {
+            return false;
+        }
     }
 
     private int getRoleLevel(UserRole role) {
         return switch (role) {
-            case SUPER_ADMIN -> 3;
-            case ADMIN -> 2;
+            case GLOBAL_ADMIN -> 4;
+            case TENANT_ADMIN -> 3;
+            case TENANT_MANAGER -> 2;
             case USER -> 1;
         };
     }

@@ -15,16 +15,26 @@ public class RolePermissionSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // ADMIN Permissions
-        seedPermission("ADMIN", "workflow:read");
-        seedPermission("ADMIN", "workflow:write");
-        seedPermission("ADMIN", "request:read");
-        seedPermission("ADMIN", "request:write");
-        seedPermission("ADMIN", "user:read");
-        seedPermission("ADMIN", "user:write");
-        seedPermission("ADMIN", "tenant:read"); // View tenant details
+        // TENANT_MANAGER Permissions (Formerly ADMIN)
+        seedPermission("TENANT_MANAGER", "workflow:read");
+        seedPermission("TENANT_MANAGER", "workflow:write");
+        seedPermission("TENANT_MANAGER", "request:read");
+        seedPermission("TENANT_MANAGER", "request:write");
+        seedPermission("TENANT_MANAGER", "user:read");
+        seedPermission("TENANT_MANAGER", "user:write");
+        seedPermission("TENANT_MANAGER", "tenant:read"); // View tenant details
 
-        // USER Permissions (Read-only interpretation)
+        // TENANT_ADMIN Permissions (Formerly SUPER_ADMIN)
+        // Ensure TENANT_ADMIN has full permissions
+        seedPermission("TENANT_ADMIN", "workflow:read");
+        seedPermission("TENANT_ADMIN", "workflow:write");
+        seedPermission("TENANT_ADMIN", "request:read");
+        seedPermission("TENANT_ADMIN", "request:write");
+        seedPermission("TENANT_ADMIN", "user:read");
+        seedPermission("TENANT_ADMIN", "user:write");
+        seedPermission("TENANT_ADMIN", "tenant:read");
+
+        // USER Permissions
         seedPermission("USER", "workflow:read");
         seedPermission("USER", "request:read");
         // Typically users also create requests, but strict 'read-only' requested:

@@ -73,7 +73,7 @@ public class SecurityConfig {
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers("/api/auth/**").permitAll()
+                                                .requestMatchers("/api/auth/**", "/error").permitAll()
                                                 .requestMatchers("/", "/login", "/forgot-password", "/reset-password",
                                                                 "/set-password",
                                                                 "/dashboard", "/profile",
@@ -87,9 +87,11 @@ public class SecurityConfig {
                                                                 "/swagger-ui.html")
                                                 .permitAll()
                                                 .requestMatchers("/actuator/health").permitAll()
-                                                .requestMatchers("/actuator/**").hasRole("SUPER_ADMIN")
-                                                .requestMatchers(HttpMethod.POST, "/api/users").authenticated()
-                                                .requestMatchers(HttpMethod.POST, "/api/tenants").permitAll()
+                                                .requestMatchers("/actuator/**").hasRole("GLOBAL_ADMIN")
+                                                .requestMatchers(HttpMethod.POST, "/api/users")
+                                                .hasAnyRole("TENANT_ADMIN", "TENANT_MANAGER")
+                                                .requestMatchers(HttpMethod.POST, "/api/tenants")
+                                                .hasRole("GLOBAL_ADMIN")
                                                 .anyRequest().authenticated())
                                 .exceptionHandling(exception -> exception
                                                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
@@ -97,5 +99,18 @@ public class SecurityConfig {
                                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterAfter(rateLimitingFilter, JwtAuthenticationFilter.class);
                 return http.build();
+        }
+
+        @Bean
+        public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+                org.springframework.web.cors.CorsConfiguration configuration = new org.springframework.web.cors.CorsConfiguration();
+                configuration.setAllowedOrigins(java.util.List.of("*"));
+                configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+                configuration.setAllowedHeaders(java.util.List.of("*"));
+                configuration.setExposedHeaders(java.util.List.of("Authorization"));
+
+                org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
         }
 }

@@ -29,41 +29,57 @@ public class TenantController {
     }
 
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('GLOBAL_ADMIN')")
     public ResponseEntity<TenantResponse> createTenant(
             @Valid @RequestBody com.example.workflow_management_system.dto.TenantCreateRequest request) {
+
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TenantController.class);
+        com.example.workflow_management_system.security.UserPrincipal currentUser = com.example.workflow_management_system.security.SecurityUtils
+                .getCurrentUser();
+
+        logger.info("LIVE_TRACE: TenantController - Received createTenant request");
+        logger.info("LIVE_TRACE: TenantController - Principal: {}", currentUser.getUsername());
+        logger.info("LIVE_TRACE: TenantController - Authorities: {}", currentUser.getAuthorities());
+        logger.info("LIVE_TRACE: TenantController - TenantContext ID: {}",
+                com.example.workflow_management_system.security.TenantContext.getTenantId());
+
+        if (currentUser.getTenantId() != null) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Only Global Admin can create tenants.");
+        }
+
         TenantResponse response = tenantService.createTenant(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('GLOBAL_ADMIN')")
     public ResponseEntity<List<TenantResponse>> getAllTenants() {
         return ResponseEntity.ok(tenantService.getAllTenants());
     }
 
     @GetMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER', 'USER')")
     public ResponseEntity<TenantResponse> getTenantById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(tenantService.getTenantById(id));
     }
 
     @PutMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<TenantResponse> updateTenant(@PathVariable @Min(1) Long id,
             @Valid @RequestBody TenantRequest request) {
         return ResponseEntity.ok(tenantService.updateTenant(id, request));
     }
 
     @DeleteMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('GLOBAL_ADMIN')")
     public ResponseEntity<Void> deleteTenant(@PathVariable @Min(1) Long id) {
         tenantService.deleteTenant(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}/users")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER', 'USER')")
     public ResponseEntity<List<UserResponse>> getUsersByTenant(@PathVariable Long id) {
         return ResponseEntity.ok(userService.getUsersByTenant(id));
     }

@@ -24,7 +24,7 @@ public class AuditLogController {
         }
 
         @GetMapping("/export")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
         public void exportAuditLogs(
                         @RequestParam(required = false) String entityType,
                         @RequestParam(required = false) String entityId,
@@ -62,7 +62,7 @@ public class AuditLogController {
         }
 
         @GetMapping
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
         public ResponseEntity<org.springframework.data.domain.Page<AuditLog>> getAuditLogs(
                         @RequestParam(required = false) String entityType,
                         @RequestParam(required = false) String entityId,
@@ -85,7 +85,7 @@ public class AuditLogController {
         }
 
         @GetMapping("/recent")
-        @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
         public ResponseEntity<List<AuditLog>> getRecentAuditLogs() {
                 return ResponseEntity.ok(auditLogService.getRecentAuditLogs());
         }

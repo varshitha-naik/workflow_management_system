@@ -36,7 +36,7 @@ public class AuditLog {
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
     private LocalDateTime timestamp;
 
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "tenant_id", nullable = true)
     private Long tenantId;
 
     @Column(name = "details", columnDefinition = "TEXT")

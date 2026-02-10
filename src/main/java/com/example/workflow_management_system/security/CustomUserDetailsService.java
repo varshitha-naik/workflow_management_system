@@ -32,7 +32,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 
             return UserPrincipal.create(user);
         } catch (Exception e) {
-            System.err.println("Error loading user: " + usernameOrEmail);
             e.printStackTrace();
             throw e;
         }

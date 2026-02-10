@@ -52,7 +52,7 @@ public class TenantService {
                 request.adminUsername(),
                 request.adminEmail(),
                 null, // Password is null until set by user via invite
-                com.example.workflow_management_system.model.UserRole.SUPER_ADMIN,
+                com.example.workflow_management_system.model.UserRole.TENANT_ADMIN,
                 savedTenant,
                 true);
         com.example.workflow_management_system.model.User savedUser = userRepository.save(adminUser);
