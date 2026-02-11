@@ -2,8 +2,11 @@ package com.example.workflow_management_system.service;
 
 import com.example.workflow_management_system.dto.WorkflowStepRequest;
 import com.example.workflow_management_system.dto.WorkflowStepResponse;
+import com.example.workflow_management_system.dto.WorkflowStepActionRequest;
+import com.example.workflow_management_system.dto.WorkflowStepActionResponse;
 import com.example.workflow_management_system.model.Workflow;
 import com.example.workflow_management_system.model.WorkflowStep;
+import com.example.workflow_management_system.model.WorkflowStepAction;
 import com.example.workflow_management_system.repository.WorkflowRepository;
 import com.example.workflow_management_system.repository.WorkflowStepRepository;
 import com.example.workflow_management_system.security.SecurityUtils;
@@ -52,6 +55,12 @@ public class WorkflowStepService {
                 request.stepName(),
                 request.requiredRole(),
                 request.autoApprove());
+
+        if (request.actions() != null) {
+            for (WorkflowStepActionRequest actionReq : request.actions()) {
+                step.addAction(new WorkflowStepAction(step, actionReq.name(), actionReq.resultStatus()));
+            }
+        }
 
         WorkflowStep savedStep = workflowStepRepository.save(step);
 
@@ -107,6 +116,14 @@ public class WorkflowStepService {
         step.setStepName(request.stepName());
         step.setRequiredRole(request.requiredRole());
         step.setAutoApprove(request.autoApprove());
+
+        // Update actions
+        step.getActions().clear();
+        if (request.actions() != null) {
+            for (WorkflowStepActionRequest actionReq : request.actions()) {
+                step.addAction(new WorkflowStepAction(step, actionReq.name(), actionReq.resultStatus()));
+            }
+        }
 
         WorkflowStep savedStep = workflowStepRepository.save(step);
 
@@ -198,6 +215,9 @@ public class WorkflowStepService {
                 step.getStepName(),
                 step.getRequiredRole(),
                 step.isAutoApprove(),
-                step.getCreatedAt());
+                step.getCreatedAt(),
+                step.getActions().stream()
+                        .map(a -> new WorkflowStepActionResponse(a.getId(), a.getName(), a.getResultStatus()))
+                        .collect(Collectors.toList()));
     }
 }

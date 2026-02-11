@@ -61,8 +61,8 @@
                         <label class="form-label">Required Role</label>
                         <select name="requiredRole" class="form-control">
                             <option value="USER">USER</option>
-                            <option value="ADMIN">ADMIN</option>
-                            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                            <option value="TENANT_ADMIN">TENANT_ADMIN</option>
+                            <option value="TENANT_MANAGER">TENANT_MANAGER</option>
                         </select>
                     </div>
                 </div>
@@ -70,6 +70,18 @@
                 <div class="form-group flex items-center gap-2">
                     <input type="checkbox" name="autoApprove" id="autoApprove">
                     <label for="autoApprove" class="m-0 cursor-pointer">Auto Approve (Skip validation)</label>
+                </div>
+
+                <!-- Actions Configuration -->
+                <div class="border-t border-gray-700 pt-4 mt-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="form-label m-0">Step Actions</label>
+                        <button type="button" onclick="addActionRow()" class="btn btn-sm btn-outline">+ Add
+                            Action</button>
+                    </div>
+                    <div id="actionsContainer" class="flex flex-col gap-2">
+                        <!-- Dynamic Action Rows -->
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
@@ -139,10 +151,11 @@
         }
 
         .step-title {
-            font-weight: 600;
+            font-weight: 700;
             color: white;
-            font-size: 1rem;
+            font-size: 1.1rem;
             margin: 0;
+            margin-bottom: 4px;
         }
 
         .step-subtitle {
@@ -196,13 +209,16 @@
                 }
 
                 // 2. Build Skeleton for each workflow
+                const canManage = hasRole(['GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER']);
                 container.innerHTML = workflowsData.map(wf => `
                     <div class="card p-0 overflow-hidden mb-6 border border-gray-700">
                         <div class="flex justify-between items-center p-4 bg-surface border-b border-gray-700">
                             <h2 class="text-lg font-bold text-white m-0">${wf.name}</h2>
+                            ${canManage ? `
                             <button onclick="openStepModal(null, ${wf.id})" class="btn btn-sm btn-primary">
                                 + Add Step
                             </button>
+                            ` : ''}
                         </div>
                         <div id="steps-container-${wf.id}" class="step-list p-0">
                             <div class="p-4"><div class="skeleton w-full h-12"></div></div>
@@ -261,8 +277,16 @@
                          <div class="step-meta">
                              <h4 class="step-title">${step.stepName}</h4>
                              <div class="step-subtitle">
-                                 <span class="badge ${getRoleBadgeClass(step.requiredRole)}" style="font-size:0.7rem;">${step.requiredRole}</span>
+                                 <span class="text-xs text-muted mr-2" style="font-weight:600;">Role: ${step.requiredRole}</span>
+                                 <!-- Optional: Keep badge if needed, or remove since text label exists. Let's keep badge but separate nicely -->
                                  ${step.autoApprove ? '<span class="badge badge-success" style="font-size:0.7rem;">Auto-Approve</span>' : ''}
+                             </div>
+                             <div class="mt-2 flex flex-wrap gap-1">
+                                 ${step.actions ? step.actions.map(a => `
+                                     <span class="badge badge-gray text-xs border border-gray-600">
+                                         ${a.name}
+                                     </span>
+                                 `).join('') : ''}
                              </div>
                          </div>
                          
@@ -291,8 +315,9 @@
         }
 
         function getRoleBadgeClass(role) {
-            if (role === 'SUPER_ADMIN') return 'badge-error';
-            if (role === 'ADMIN') return 'badge-warning';
+            if (role === 'GLOBAL_ADMIN' || role === 'SUPER_ADMIN') return 'badge-error';
+            if (role === 'TENANT_ADMIN') return 'badge-warning';
+            if (role === 'TENANT_MANAGER') return 'badge-secondary';
             return 'badge-blue';
         }
 
@@ -318,6 +343,13 @@
                     form.elements['stepOrder'].value = step.stepOrder;
                     form.elements['requiredRole'].value = step.requiredRole;
                     form.elements['autoApprove'].checked = step.autoApprove;
+
+                    // Populate actions
+                    const container = document.getElementById('actionsContainer');
+                    container.innerHTML = '';
+                    if (step.actions && step.actions.length > 0) {
+                        step.actions.forEach(a => addActionRow(a.name, a.resultStatus));
+                    }
                 }
             } else {
                 // Add Mode
@@ -331,6 +363,7 @@
                 btn.textContent = 'Add Step';
                 document.getElementById('stepId').value = '';
                 document.getElementById('workflowId').value = workflowId;
+                document.getElementById('actionsContainer').innerHTML = '';
 
                 // Suggested Order
                 const currentSteps = stepsCache[workflowId] || [];
@@ -350,11 +383,19 @@
             const stepId = formData.get('stepId');
             const workflowId = formData.get('workflowId');
 
+            // Collect actions
+            const actionRows = document.querySelectorAll('.action-row');
+            const actions = Array.from(actionRows).map(row => ({
+                name: row.querySelector('.action-name').value,
+                resultStatus: row.querySelector('.action-status').value
+            }));
+
             const payload = {
                 stepName: formData.get('stepName'),
                 stepOrder: parseInt(formData.get('stepOrder')),
                 requiredRole: formData.get('requiredRole'),
-                autoApprove: formData.get('autoApprove') === 'on'
+                autoApprove: formData.get('autoApprove') === 'on',
+                actions: actions
             };
 
             try {
@@ -366,7 +407,12 @@
                     showMessage('msg', 'Step added', 'success');
                 }
                 closeStepModal();
-                loadStepsForWorkflow(workflowId); // Refresh specific workflow
+                if (workflowId) {
+                    loadStepsForWorkflow(workflowId);
+                } else {
+                    // Fallback to reload all if context lost, though workflowId should be there
+                    loadAllData();
+                }
             } catch (err) {
                 alert(err.message);
             } finally {
@@ -400,7 +446,8 @@
                     stepName: step.stepName,
                     stepOrder: newOrder,
                     requiredRole: step.requiredRole,
-                    autoApprove: step.autoApprove
+                    autoApprove: step.autoApprove,
+                    actions: step.actions ? step.actions.map(a => ({ name: a.name, resultStatus: a.resultStatus })) : []
                 };
             }
 
@@ -408,10 +455,6 @@
                 // Determine new orders
                 const tempOrder = currentStep.stepOrder;
                 const newOrder = targetStep.stepOrder; // Usually just +1 or -1 swapping
-
-                // We swap orders. 
-                // But wait, if we just swap numbers, it works.
-                // However, we must ensure we send clean Payloads.
 
                 await apiCall(`/workflow-steps/${currentStep.id}`, 'PUT', createCleanPayload(currentStep, newOrder));
                 await apiCall(`/workflow-steps/${targetStep.id}`, 'PUT', createCleanPayload(targetStep, tempOrder));
@@ -423,6 +466,19 @@
             }
         }
 
+        function addActionRow(name = '', status = '') {
+            const container = document.getElementById('actionsContainer');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 action-row';
+            div.innerHTML = `
+                <input type="text" class="form-control action-name" placeholder="Name (e.g. Approve)" value="${name}" required style="flex:1">
+                <input type="text" class="form-control action-status" placeholder="Status (e.g. MANAGER_APPROVED)" value="${status}" required style="flex:1">
+                <button type="button" onclick="this.parentElement.remove()" class="btn btn-icon-danger">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            `;
+            container.appendChild(div);
+        }
     </script>
 </body>
 

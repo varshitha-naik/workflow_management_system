@@ -29,13 +29,25 @@
                 Dashboard
             </a>
 
-
+            <a href="/workflows" class="nav-item" id="nav-workflows">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M22 6h-6l-2-2H2v16h20V6zm-2 12H4V8h16v10z" />
+                </svg>
+                Workflows
+            </a>
 
             <a href="/workflow-steps" class="nav-item" id="nav-workflow-steps" style="display:none">
                 <svg class="nav-icon" viewBox="0 0 24 24">
                     <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z" />
                 </svg>
                 Workflow Steps
+            </a>
+
+            <a href="/assignments" class="nav-item" id="nav-assignments" style="display:none">
+                <svg class="nav-icon" viewBox="0 0 24 24">
+                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                </svg>
+                Assignments
             </a>
 
             <!-- Admin Links -->
@@ -88,29 +100,15 @@
                 </svg>
                 My Requests
             </a>
-
-            <a href="/assignments" class="nav-item" id="nav-assignments" style="display:none">
+            <!-- Profile -->
+            <a href="/profile" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                    <path
+                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
                 </svg>
-                Assignments
-            </a>
-
-            <a href="/workflows" class="nav-item" id="nav-workflows">
-                <svg class="nav-icon" viewBox="0 0 24 24">
-                    <path d="M22 6h-6l-2-2H2v16h20V6zm-2 12H4V8h16v10z" />
-                </svg>
-                Workflows
+                Profile
             </a>
         </nav>
-
-        <a href="/profile" class="nav-item mt-4">
-            <svg class="nav-icon" viewBox="0 0 24 24">
-                <path
-                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
-            Profile
-        </a>
 
         <div class="mt-4">
             <button onclick="clearAuth()" class="btn btn-outline w-full btn-sm">
@@ -175,25 +173,25 @@
             const ctx = requireAuth(); // From app.js
             if (ctx) {
                 // Update Sidebar Visibility based on Role
-                if (hasRole('SUPER_ADMIN')) {
+                if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) {
                     // Only Platform Owner (WorkflowSys) manages tenants
                     if (ctx.tenantName === 'WorkflowSys') {
                         document.getElementById('nav-tenants').style.display = 'flex';
                     }
                     document.getElementById('nav-users').style.display = 'flex';
                     document.getElementById('nav-workflow-steps').style.display = 'flex';
-                } else if (hasRole('ADMIN')) {
+                } else if (hasRole(['ADMIN', 'TENANT_ADMIN'])) {
                     document.getElementById('nav-users').style.display = 'flex';
                     document.getElementById('nav-all-requests').style.display = 'flex';
                     document.getElementById('nav-approvals').style.display = 'flex';
                     document.getElementById('nav-assignments').style.display = 'flex';
                     document.getElementById('nav-workflow-steps').style.display = 'flex';
-                } else if (hasRole('USER')) {
+                } else if (hasRole(['USER', 'TENANT_MANAGER'])) {
                     document.getElementById('nav-new-request').style.display = 'flex';
                     document.getElementById('nav-my-requests').style.display = 'flex';
                     document.getElementById('nav-assignments').style.display = 'flex';
 
-                    // Rename Workflows to Processes for USER
+                    // Rename Workflows to Processes for USER/MANAGER
                     const wfNav = document.getElementById('nav-workflows');
                     if (wfNav) {
                         // Preserve icon by updating text node only or innerHTML careful reconstruction

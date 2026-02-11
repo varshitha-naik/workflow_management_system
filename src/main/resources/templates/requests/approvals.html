@@ -61,7 +61,7 @@
         document.addEventListener('DOMContentLoaded', init);
 
         async function init() {
-            const ctx = requireAuth(['ADMIN']); // Usually only Admins/Managers approve
+            const ctx = requireAuth(['ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER']); // Usually only Admins/Managers approve
             if (!ctx) return;
 
             loadApprovals();

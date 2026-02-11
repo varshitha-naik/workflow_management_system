@@ -107,4 +107,25 @@ public class WorkflowStep {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
+
+    @OneToMany(mappedBy = "step", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<WorkflowStepAction> actions = new java.util.ArrayList<>();
+
+    public java.util.List<WorkflowStepAction> getActions() {
+        return actions;
+    }
+
+    public void setActions(java.util.List<WorkflowStepAction> actions) {
+        this.actions = actions;
+    }
+
+    public void addAction(WorkflowStepAction action) {
+        actions.add(action);
+        action.setStep(this);
+    }
+
+    public void removeAction(WorkflowStepAction action) {
+        actions.remove(action);
+        action.setStep(null);
+    }
 }

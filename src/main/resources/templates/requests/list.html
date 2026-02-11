@@ -38,7 +38,7 @@
         document.addEventListener('DOMContentLoaded', init);
 
         async function init() {
-            const ctx = requireAuth(['ADMIN', 'SUPER_ADMIN']);
+            const ctx = requireAuth(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'ADMIN', 'TENANT_ADMIN']);
             if (!ctx) return;
 
             loadRequests();

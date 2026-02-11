@@ -25,14 +25,14 @@ public class UserController {
     }
 
     @PostMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody UserRequest request) {
         UserResponse response = userService.createUser(request);
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @GetMapping
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<org.springframework.data.domain.Page<UserResponse>> getAllUsers(
             @RequestParam(required = false) com.example.workflow_management_system.model.UserRole role,
             @RequestParam(required = false) Boolean active,
@@ -42,46 +42,46 @@ public class UserController {
         com.example.workflow_management_system.security.UserPrincipal currentUser = (com.example.workflow_management_system.security.UserPrincipal) authentication
                 .getPrincipal();
 
-        // Enforce implicit tenant scope for ALL roles including SUPER_ADMIN
+        // Enforce implicit tenant scope for ALL roles including GLOBAL_ADMIN
         return ResponseEntity
                 .ok(userService.getUsersByTenant(currentUser.getTenantId(), role, active, pageable));
     }
 
     @DeleteMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable @Min(1) Long id) {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<UserResponse> updateUser(@PathVariable @Min(1) Long id,
             @Valid @RequestBody UserRequest request) {
         return ResponseEntity.ok(userService.updateUser(id, request));
     }
 
     @GetMapping("/{id}")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER', 'USER')")
     public ResponseEntity<UserResponse> getUserById(@PathVariable @Min(1) Long id) {
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @GetMapping("/me")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER', 'USER')")
     public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         return ResponseEntity.ok(userService.getUserById(userPrincipal.getId()));
     }
 
     @PatchMapping("/{id}/status")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER')")
     public ResponseEntity<UserResponse> updateUserStatus(@PathVariable @Min(1) Long id,
             @Valid @RequestBody UserStatusRequest request) {
         return ResponseEntity.ok(userService.updateUserStatus(id, request.active()));
     }
 
     @PutMapping("/me")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER', 'USER')")
     public ResponseEntity<UserResponse> updateCurrentUser(@AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody com.example.workflow_management_system.dto.UserProfileRequest request) {
         return ResponseEntity.ok(userService.updateProfile(userPrincipal.getId(), request));

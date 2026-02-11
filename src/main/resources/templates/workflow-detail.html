@@ -43,6 +43,14 @@
                     <!-- Steps Column -->
                     <div class="card p-6">
                         <h3 class="mb-4 text-lg" id="stepsTitle">Workflow Steps</h3>
+
+                        <!-- Timeline View -->
+                        <div class="mb-8 overflow-x-auto pb-2">
+                            <div id="timelineContainer" class="flex items-center min-w-max">
+                                <!-- Timeline items injected here -->
+                            </div>
+                        </div>
+
                         <div id="stepsContainer" class="mt-4">
                             <!-- Steps injected here -->
                             <div class="skeleton w-full h-12 mb-2"></div>
@@ -98,8 +106,8 @@
                         <label class="form-label">Required Role</label>
                         <select name="requiredRole" class="form-control">
                             <option value="USER">USER</option>
-                            <option value="ADMIN">ADMIN</option>
-                            <option value="SUPER_ADMIN">SUPER_ADMIN</option>
+                            <option value="TENANT_ADMIN">TENANT_ADMIN</option>
+                            <option value="TENANT_MANAGER">TENANT_MANAGER</option>
                         </select>
                     </div>
                 </div>
@@ -107,6 +115,18 @@
                 <div class="form-group flex items-center gap-2">
                     <input type="checkbox" name="autoApprove" id="autoApprove">
                     <label for="autoApprove" class="m-0 cursor-pointer">Auto Approve (Skip validation)</label>
+                </div>
+
+                <!-- Actions Configuration -->
+                <div class="border-t border-gray-700 pt-4 mt-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="form-label m-0">Step Actions</label>
+                        <button type="button" onclick="addActionRow()" class="btn btn-sm btn-outline">+ Add
+                            Action</button>
+                    </div>
+                    <div id="actionsContainer" class="flex flex-col gap-2">
+                        <!-- Dynamic Action Rows -->
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-2 mt-6">
@@ -148,14 +168,14 @@
             const ctx = requireAuth();
             if (ctx) {
                 // Show admin actions if applicable
-                if (hasRole(['ADMIN', 'SUPER_ADMIN'])) {
+                if (hasRole(['GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER'])) {
                     const headerActions = document.getElementById('headerActions');
                     const configActions = document.getElementById('configActions');
                     if (headerActions) headerActions.style.display = 'flex';
                     if (configActions) configActions.style.display = 'block';
                 }
 
-                if (hasRole('USER') && !hasRole(['ADMIN', 'SUPER_ADMIN'])) {
+                if (hasRole('USER') && !hasRole(['GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER'])) {
                     const stepsTitle = document.getElementById('stepsTitle');
                     if (stepsTitle) stepsTitle.textContent = 'Process Steps';
                 }
@@ -192,18 +212,23 @@
         async function loadSteps() {
             const container = document.getElementById('stepsContainer');
             // Check roles safely
-            const canManage = hasRole(['ADMIN', 'SUPER_ADMIN']);
+            const canManage = hasRole(['GLOBAL_ADMIN', 'TENANT_ADMIN', 'TENANT_MANAGER']);
 
             try {
                 const steps = await apiCall(`/workflows/${WORKFLOW_ID}/steps`);
                 stepsData = steps || []; // Store globally for edit
                 if (!steps || steps.length === 0) {
                     container.innerHTML = '<div class="text-muted text-center p-4">No steps defined yet. Start by adding one.</div>';
+                    // Clear timeline
+                    document.getElementById('timelineContainer').innerHTML = '';
                     return;
                 }
 
                 // Sort by order
                 steps.sort((a, b) => a.stepOrder - b.stepOrder);
+
+                // Render Timeline
+                renderTimeline(steps);
 
                 let html = '<div class="flex flex-col gap-6">';
                 steps.forEach((step, index) => {
@@ -245,10 +270,18 @@
                             <div class="flex-1 card step-card p-4 mb-0 shadow-sm border-l-4 ${step.autoApprove ? 'border-l-success' : 'border-l-primary'}">
                                 <div class="flex justify-between items-start gap-4">
                                     <div class="flex-1 min-w-0">
-                                        <h4 class="text-white font-bold text-md m-0">${step.stepName}</h4>
-                                        <div class="flex gap-2 mt-2">
-                                            <span class="badge ${getRoleBadgeClass(step.requiredRole)}">${step.requiredRole}</span>
-                                            ${step.autoApprove ? '<span class="badge badge-success">Auto-Approve</span>' : ''}
+                                        <h4 class="text-white font-bold text-lg m-0 mb-1">${step.stepName}</h4>
+                                        <div class="flex gap-2 items-center mt-1">
+                                            <span class="text-sm font-semibold text-muted">Role: ${step.requiredRole}</span>
+                                            ${step.autoApprove ? '<span class="badge badge-success text-xs">Auto-Approve</span>' : ''}
+                                        </div>
+                                        <!-- Display Actions -->
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            ${step.actions ? step.actions.map(a => `
+                                                <span class="badge badge-gray text-xs border border-gray-600">
+                                                    ${a.name} → ${a.resultStatus}
+                                                </span>
+                                            `).join('') : ''}
                                         </div>
                                     </div>
                                     ${actionsHtml}
@@ -266,11 +299,51 @@
             }
         }
 
+        function renderTimeline(steps) {
+            const container = document.getElementById('timelineContainer');
+            if (!container) return;
+
+            // Simple horizontal timeline
+            // Format: [ 1 Step Name (Role) ] -> [ 2 ... ]
+
+            let html = '';
+            steps.forEach((step, index) => {
+                const isLast = index === steps.length - 1;
+
+                // Timeline Node
+                html += `
+                    <div class="flex flex-col items-center flex-shrink-0" style="width: 140px; position:relative;">
+                        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-white mb-2 z-10 border border-gray-600 shadow-sm" style="background: var(--surface); color: var(--primary);">
+                            ${step.stepOrder}
+                        </div>
+                        <div class="text-center">
+                            <div class="font-bold text-sm text-white truncate w-full px-1" title="${step.stepName}">${step.stepName}</div>
+                            <div class="text-xs text-muted truncate w-full px-1">${step.requiredRole}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Arrow Connector using flex text or SVG
+                if (!isLast) {
+                    html += `
+                        <div class="flex-1 flex items-center justify-center px-2 text-muted" style="min-width: 30px; margin-top: -30px;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                            </svg>
+                        </div>
+                    `;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
 
         function getRoleBadgeClass(role) {
-            if (role === 'SUPER_ADMIN') return 'badge-error'; // Red/Pink
-            if (role === 'ADMIN') return 'badge-warning';
-            return 'badge-blue';
+            if (role === 'GLOBAL_ADMIN' || role === 'SUPER_ADMIN') return 'badge-error'; // Red/Pink
+            if (role === 'TENANT_ADMIN') return 'badge-warning'; // Orange/Yellow
+            if (role === 'TENANT_MANAGER') return 'badge-secondary'; // Purple-ish or different
+            return 'badge-blue'; // USER
         }
 
         // --- Actions ---
@@ -297,11 +370,19 @@
                     form.elements['stepOrder'].value = step.stepOrder;
                     form.elements['requiredRole'].value = step.requiredRole;
                     form.elements['autoApprove'].checked = step.autoApprove;
+
+                    // Populate actions
+                    const container = document.getElementById('actionsContainer');
+                    container.innerHTML = '';
+                    if (step.actions && step.actions.length > 0) {
+                        step.actions.forEach(a => addActionRow(a.name, a.resultStatus));
+                    }
                 }
             } else {
                 title.textContent = 'Add Step';
                 btn.textContent = 'Add Step';
                 document.getElementById('stepId').value = '';
+                document.getElementById('actionsContainer').innerHTML = '';
                 // Default order auto-increment could be nice, but keeping simple for now
             }
         }
@@ -321,11 +402,19 @@
             const formData = new FormData(e.target);
             const stepId = formData.get('stepId');
 
+            // Collect actions
+            const actionRows = document.querySelectorAll('.action-row');
+            const actions = Array.from(actionRows).map(row => ({
+                name: row.querySelector('.action-name').value,
+                resultStatus: row.querySelector('.action-status').value
+            }));
+
             const payload = {
                 stepName: formData.get('stepName'),
                 stepOrder: parseInt(formData.get('stepOrder')),
                 requiredRole: formData.get('requiredRole'),
-                autoApprove: formData.get('autoApprove') === 'on'
+                autoApprove: formData.get('autoApprove') === 'on',
+                actions: actions
             };
 
             try {
@@ -437,6 +526,20 @@
                 await apiCall(`/workflows/${WORKFLOW_ID}`, 'DELETE');
                 window.location.href = '/workflows';
             } catch (e) { alert(e.message); }
+        }
+
+        function addActionRow(name = '', status = '') {
+            const container = document.getElementById('actionsContainer');
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 action-row';
+            div.innerHTML = `
+                <input type="text" class="form-control action-name" placeholder="Name (e.g. Approve)" value="${name}" required style="flex:1">
+                <input type="text" class="form-control action-status" placeholder="Status (e.g. MANAGER_APPROVED)" value="${status}" required style="flex:1">
+                <button type="button" onclick="this.parentElement.remove()" class="btn btn-icon-danger">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            `;
+            container.appendChild(div);
         }
     </script>
 </body>

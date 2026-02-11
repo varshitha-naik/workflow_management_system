@@ -142,7 +142,7 @@
         document.addEventListener('DOMContentLoaded', init);
 
         async function init() {
-            const ctx = requireAuth(['SUPER_ADMIN', 'ADMIN']);
+            const ctx = requireAuth(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'ADMIN', 'TENANT_ADMIN']);
             if (!ctx) return;
 
             setupRoleFilter(); // New function call
@@ -158,17 +158,21 @@
             const roleSelect = document.getElementById('roleFilter');
             roleSelect.innerHTML = '';
 
-            if (hasRole('SUPER_ADMIN')) {
+            if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) {
                 // Super Admins see everything
                 roleSelect.innerHTML = `
                     <option value="">All Roles</option>
-                    <option value="ADMIN">Admins</option>
+                    <option value="TENANT_ADMIN">Tenant Admins</option>
+                    <option value="TENANT_MANAGER">Tenant Managers</option>
                     <option value="USER">Users</option>
                 `;
             } else {
-                // Admins see only Users, and cannot change filter effectively other than maybe 'All' which implies filtered list anyway
-                // Requirement: "Remove ADMIN and SUPER_ADMIN options... Default Role filter should be Users"
-                roleSelect.innerHTML = `<option value="USER" selected>Users</option>`;
+                // Tenant Admins see their team
+                roleSelect.innerHTML = `
+                    <option value="">All Roles</option>
+                    <option value="TENANT_MANAGER">Tenant Managers</option>
+                    <option value="USER">Users</option>
+                `;
             }
         }
 
@@ -200,10 +204,11 @@
                 const ctx = getAuthContext();
 
                 // Role-based visibility filtering (Client-side safety)
-                if (hasRole('ADMIN')) {
-                    // Admins can strictly only see normal Users in their tenant
-                    displayUsers = displayUsers.filter(u => u.role === 'USER' && u.tenantId === ctx.tenantId);
-                } else if (hasRole('SUPER_ADMIN')) {
+                if (hasRole(['ADMIN', 'TENANT_ADMIN'])) {
+                    // Tenant Admins see all users in their tenant (USER, TENANT_MANAGER, other TENANT_ADMINs)
+                    // No strict filtering needed if backend returns correct list, but defensive:
+                    displayUsers = displayUsers.filter(u => u.tenantId === ctx.tenantId);
+                } else if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) {
                     // Super Admins: strict tenant isolation unless they are 'WorkflowSys' (Platform Owner)
                     if (ctx.tenantName !== 'WorkflowSys') {
                         displayUsers = displayUsers.filter(u => u.tenantId === ctx.tenantId);
@@ -228,8 +233,8 @@
                     }
                 ];
 
-                // Add Delete action for SUPER_ADMIN
-                if (hasRole('SUPER_ADMIN')) {
+                // Add Delete action for SUPER_ADMIN / GLOBAL_ADMIN / TENANT_ADMIN
+                if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'TENANT_ADMIN'])) {
                     actions.push({
                         label: 'Delete',
                         class: 'btn-danger btn-sm',
@@ -237,6 +242,13 @@
                         condition: (row) => {
                             // Can't delete yourself
                             if (row.username === ctx.username) return false;
+
+                            // TENANT_ADMIN cannot delete GLOBAL_ADMIN (though they shouldn't see them anyway due to filtering)
+                            // or other TENANT_ADMINs if that's the rule, but usually admin can delete admin.
+                            // Requirement says "Only allow delete if Role = GLOBAL_ADMIN OR TENANT_ADMIN".
+                            // And "TENANT_MANAGER and USER should NOT see delete option".
+                            // Does not explicitly forbid deleting same-level admins, but let's allow it as standard.
+
                             return true;
                         }
                     });
@@ -245,7 +257,14 @@
                 renderTable('usersTableContainer', [
                     { label: 'Username', key: 'username', format: v => `<span class="font-bold text-white">${v}</span>` },
                     { label: 'Email', key: 'email' },
-                    { label: 'Role', key: 'role', format: (v) => `<span class="badge ${v === 'USER' ? 'badge-blue' : 'badge-warning'}">${v}</span>` },
+                    {
+                        label: 'Role', key: 'role', format: (v) => {
+                            let color = 'badge-blue'; // USER
+                            if (v === 'TENANT_ADMIN' || v === 'ADMIN' || v === 'GLOBAL_ADMIN' || v === 'SUPER_ADMIN') color = 'badge-warning';
+                            if (v === 'TENANT_MANAGER') color = 'badge-purple'; // Purple for Managers
+                            return `<span class="badge ${color}">${v}</span>`;
+                        }
+                    },
                     { label: 'Status', key: 'active', format: (v) => v ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-error">Inactive</span>' },
                     { label: 'Tenant', key: 'tenantId' }
                 ], displayUsers, actions);
@@ -321,20 +340,24 @@
 
         function setupRoleOptions() {
             const roleSelect = document.getElementById('role');
-            const isSuperAdmin = hasRole('SUPER_ADMIN');
-            const isAdmin = hasRole('ADMIN');
+            const isGlobal = hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN']);
+            const isTenantAdmin = hasRole(['ADMIN', 'TENANT_ADMIN']);
 
             // Reset options
-            roleSelect.innerHTML = '<option value="USER">User</option>';
+            roleSelect.innerHTML = '';
 
-            if (isAdmin) {
-                // Admins cannot create Admins, only Users. 
-                // However, if we are EDITING an existing Admin (which shouldn't happen for Admin user but purely defensive), handle gracefully.
-                // Actually Admin sees only USERs, so this is fine.
+            if (isTenantAdmin) {
+                // Tenant Admin can create TENANT_MANAGER and USER
+                roleSelect.innerHTML += '<option value="USER">User</option>';
+                roleSelect.innerHTML += '<option value="TENANT_MANAGER">Tenant Manager</option>';
             }
 
-            if (isSuperAdmin) {
-                roleSelect.innerHTML += '<option value="ADMIN">Admin</option>';
+            if (isGlobal) {
+                // Global Admin can create anything (simplified)
+                roleSelect.innerHTML += '<option value="USER">User</option>';
+                roleSelect.innerHTML += '<option value="TENANT_MANAGER">Tenant Manager</option>';
+                roleSelect.innerHTML += '<option value="TENANT_ADMIN">Tenant Admin</option>';
+                roleSelect.innerHTML += '<option value="GLOBAL_ADMIN">Global Admin</option>';
             }
         }
 

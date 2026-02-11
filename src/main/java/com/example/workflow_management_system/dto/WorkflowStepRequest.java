@@ -6,8 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record WorkflowStepRequest(
-        @Min(value = 1, message = "Step order must be at least 1") int stepOrder,
-        @NotBlank(message = "Step name is required") String stepName,
-        @NotNull(message = "Required role is required") UserRole requiredRole,
-        boolean autoApprove) {
+                @Min(value = 1, message = "Step order must be at least 1") int stepOrder,
+                @NotBlank(message = "Step name is required") String stepName,
+                @NotNull(message = "Required role is required") UserRole requiredRole,
+                boolean autoApprove,
+                java.util.List<WorkflowStepActionRequest> actions) {
 }

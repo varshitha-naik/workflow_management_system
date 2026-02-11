@@ -133,9 +133,10 @@
 
             // Badges
             const userMeta = document.getElementById('userMeta');
-            let roleName = 'USER';
-            if (hasRole('SUPER_ADMIN')) roleName = 'SUPER ADMIN';
-            else if (hasRole('ADMIN')) roleName = 'ADMIN';
+            let roleName = ctx.role || 'USER'; // Use actual role name or map it if needed
+            if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) roleName = 'GLOBAL ADMIN';
+            else if (hasRole(['ADMIN', 'TENANT_ADMIN'])) roleName = 'TENANT ADMIN';
+
 
             let badgesHtml = `<span class="badge badge-blue text-xs tracking-wider">${roleName}</span>`;
 
@@ -157,7 +158,7 @@
                     return [];
                 };
 
-                const canViewUsers = hasRole('SUPER_ADMIN') || hasRole('ADMIN');
+                const canViewUsers = hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN']) || hasRole(['ADMIN', 'TENANT_ADMIN']);
 
                 const [workflowsResp, requestsResp, usersResp] = await Promise.all([
                     apiCall('/workflows').catch(() => []),
@@ -203,7 +204,7 @@
             }
 
             // --- Action Modules Logic ---
-            if (hasRole('SUPER_ADMIN')) {
+            if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN'])) {
                 let superAdminModules = '';
                 if (ctx.tenantName === 'WorkflowSys') {
                     superAdminModules += `
@@ -229,7 +230,7 @@
                      </a>
                  `;
                 modulesGrid.innerHTML += superAdminModules;
-            } else if (hasRole('ADMIN')) {
+            } else if (hasRole(['ADMIN', 'TENANT_ADMIN'])) {
                 modulesGrid.innerHTML += `
                      <a href="/users" class="card action-card block cursor-pointer">
                         <div class="flex items-center gap-2 mb-2">
@@ -246,7 +247,7 @@
             // --- Recent Activity Logic ---
             const recentActivitySection = document.getElementById('recentActivitySection');
 
-            if (hasRole('SUPER_ADMIN') || hasRole('ADMIN')) {
+            if (hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN']) || hasRole(['ADMIN', 'TENANT_ADMIN'])) {
                 // Modal Logic
                 const modal = document.getElementById('activityModal');
                 const viewBtn = document.getElementById('viewActivityBtn');
