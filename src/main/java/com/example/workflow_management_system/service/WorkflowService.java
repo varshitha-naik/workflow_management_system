@@ -26,12 +26,15 @@ public class WorkflowService {
     private final WorkflowRepository workflowRepository;
     private final TenantRepository tenantRepository;
     private final AuditLogService auditLogService;
+    private final com.example.workflow_management_system.repository.WorkflowStepRepository workflowStepRepository;
 
     public WorkflowService(WorkflowRepository workflowRepository, TenantRepository tenantRepository,
-            AuditLogService auditLogService) {
+            AuditLogService auditLogService,
+            com.example.workflow_management_system.repository.WorkflowStepRepository workflowStepRepository) {
         this.workflowRepository = workflowRepository;
         this.tenantRepository = tenantRepository;
         this.auditLogService = auditLogService;
+        this.workflowStepRepository = workflowStepRepository;
     }
 
     @Caching(evict = {
@@ -80,17 +83,45 @@ public class WorkflowService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "workflows", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId()")
+    // Update cache key to include role or user ID to prevent data leak between
+    // roles
+    @Cacheable(value = "workflows", key = "T(com.example.workflow_management_system.security.SecurityUtils).getCurrentTenantId() + '-' + T(com.example.workflow_management_system.security.SecurityUtils).getCurrentUser().getRole()")
     public List<WorkflowResponse> getAllWorkflows() {
-        Long tenantId = SecurityUtils.getCurrentUser().getTenantId();
+        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
+        Long tenantId = currentUser.getTenantId();
+        String role = currentUser.getRole();
 
         if (tenantId == null) {
             return java.util.Collections.emptyList();
         }
 
-        return workflowRepository.findByTenantId(tenantId)
+        List<WorkflowResponse> allWorkflows = workflowRepository.findByTenantId(tenantId)
                 .stream()
                 .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        // Admins see all
+        if ("TENANT_ADMIN".equals(role) || "ADMIN".equals(role) || "GLOBAL_ADMIN".equals(role)
+                || "SUPER_ADMIN".equals(role)) {
+            return allWorkflows;
+        }
+
+        // Filter for USER and TENANT_MANAGER
+        return allWorkflows.stream()
+                .filter(w -> {
+                    String startRole = w.firstStepRole();
+                    if (startRole == null)
+                        return false; // Cannot start workflow with no steps
+
+                    if ("USER".equals(role)) {
+                        return "USER".equals(startRole);
+                    }
+                    if ("TENANT_MANAGER".equals(role)) {
+                        // Manager can start their own workflows AND User workflows
+                        return "USER".equals(startRole) || "TENANT_MANAGER".equals(startRole);
+                    }
+                    return false;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -176,12 +207,17 @@ public class WorkflowService {
     }
 
     public WorkflowResponse mapToResponse(Workflow workflow) {
+        String firstStepRole = workflowStepRepository.findByWorkflowIdAndStepOrder(workflow.getId(), 1)
+                .map(step -> step.getRequiredRole().name())
+                .orElse(null);
+
         return new WorkflowResponse(
                 workflow.getId(),
                 workflow.getName(),
                 workflow.getDescription(),
                 workflow.getTenant().getId(),
                 workflow.isActive(),
+                firstStepRole,
                 workflow.getCreatedAt(),
                 workflow.getUpdatedAt());
     }

@@ -127,15 +127,39 @@
         <h3 id="page-title-display" style="margin:0; font-size:1.1rem; color:white;"></h3>
 
         <div class="topbar-right">
-            <!-- Notifications (Dummy) -->
-            <div style="position:relative; cursor:pointer">
-                <svg width="24" height="24" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                    </path>
-                </svg>
-                <span class="badge badge-error"
-                    style="position:absolute; top:-5px; right:-5px; width:8px; height:8px; padding:0;"></span>
+            <!-- Notifications -->
+            <div class="relative cursor-pointer" id="notificationBell">
+                <div class="relative p-2 rounded-full hover:bg-surface-hover transition-colors">
+                    <svg width="24" height="24" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                        </path>
+                    </svg>
+                    <span id="notificationBadge"
+                        class="hidden absolute top-0 right-0 w-3 h-3 bg-error rounded-full border-2 border-surface"></span>
+                </div>
+
+                <!-- Dropdown -->
+                <div id="notificationDropdown"
+                    class="hidden absolute right-0 mt-3 w-80 bg-surface border border-border rounded-lg shadow-xl z-50 overflow-hidden transform origin-top-right transition-all duration-200">
+                    <div class="px-4 py-3 border-b border-border flex justify-between items-center bg-surface-hover">
+                        <h3 class="font-bold text-sm">Notifications</h3>
+                        <button onclick="refreshNotifications()" class="btn-icon-subtle hover:text-white"
+                            title="Refresh">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="notificationList" class="max-h-80 overflow-y-auto">
+                        <div class="p-6 text-center text-muted">Loading...</div>
+                    </div>
+                    <div class="p-2 border-t border-border bg-surface-hover text-center">
+                        <a href="#" class="text-xs text-muted hover:text-white block w-full py-1">View All</a>
+                    </div>
+                </div>
             </div>
 
             <!-- Profile Dropdown -->
@@ -184,7 +208,6 @@
                     document.getElementById('nav-users').style.display = 'flex';
                     document.getElementById('nav-all-requests').style.display = 'flex';
                     document.getElementById('nav-approvals').style.display = 'flex';
-                    document.getElementById('nav-assignments').style.display = 'flex';
                     document.getElementById('nav-workflow-steps').style.display = 'flex';
                 } else if (hasRole(['USER', 'TENANT_MANAGER'])) {
                     document.getElementById('nav-new-request').style.display = 'flex';
@@ -222,6 +245,113 @@
                 }
             });
         });
+
+        // Notification Logic
+        let isDropdownOpen = false;
+
+        document.getElementById('notificationBell').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById('notificationDropdown');
+            isDropdownOpen = !isDropdownOpen;
+            if (isDropdownOpen) {
+                dropdown.classList.remove('hidden');
+                loadNotifications();
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('notificationDropdown');
+            const bell = document.getElementById('notificationBell');
+            if (isDropdownOpen && !dropdown.contains(e.target) && !bell.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                isDropdownOpen = false;
+            }
+        });
+
+        async function updateNotificationBadge() {
+            try {
+                const count = await apiCall('/notifications/unread-count');
+                const badge = document.getElementById('notificationBadge');
+                if (count > 0) {
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            } catch (err) {
+                console.error("Failed to fetch unread count", err);
+            }
+        }
+
+        async function loadNotifications() {
+            const list = document.getElementById('notificationList');
+            try {
+                const notifications = await apiCall('/notifications?limit=10');
+                if (notifications.length === 0) {
+                    list.innerHTML = `
+                        <div class="p-8 text-center flex flex-col items-center justify-center">
+                            <div class="w-10 h-10 rounded-full bg-surface-hover flex items-center justify-center mb-3">
+                                <svg width="20" height="20" fill="none" stroke="var(--text-muted)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </div>
+                            <p class="text-sm text-white font-medium mb-1">You're all caught up 🎉</p>
+                            <p class="text-xs text-muted">No new notifications right now.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = notifications.map(n => `
+                    <div onclick="handleNotificationClick(${n.id}, ${n.request?.id || 'null'})" class="p-4 border-b border-border hover:bg-surface-hover cursor-pointer transition-colors ${!n.read ? 'bg-primary-subtle border-l-4 border-l-primary' : 'border-l-4 border-l-transparent'}">
+                        <div class="flex items-start gap-3">
+                            <div class="mt-0.5">
+                                ${getNotificationIcon(n.type)}
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm text-white leading-tight mb-1 font-medium">${n.message}</p>
+                                <p class="text-xs text-muted">${new Date(n.createdAt).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                // Update badge after loading
+                updateNotificationBadge();
+
+            } catch (err) {
+                list.innerHTML = `<div class="p-4 text-center text-error text-sm">Failed to load notifications</div>`;
+            }
+        }
+
+        async function handleNotificationClick(id, requestId) {
+            try {
+                await apiCall(`/notifications/${id}/read`, 'POST');
+                if (requestId) {
+                    window.location.href = `/requests/${requestId}`;
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function refreshNotifications() {
+            loadNotifications();
+            updateNotificationBadge();
+        }
+
+        function getNotificationIcon(type) {
+            if (type === 'SUCCESS') return `<span class="text-success">✔</span>`;
+            if (type === 'ERROR') return `<span class="text-error">✖</span>`;
+            if (type === 'ACTION') return `<span class="text-warning">⚡</span>`;
+            return `<span class="text-info">ℹ</span>`;
+        }
+
+        // Initial Poll
+        if (requireAuth()) {
+            updateNotificationBadge();
+            // Optional: Poll every 60s
+            setInterval(updateNotificationBadge, 60000);
+        }
     </script>
 </body>
 

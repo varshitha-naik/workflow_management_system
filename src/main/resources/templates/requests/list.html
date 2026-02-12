@@ -68,20 +68,37 @@
                     return;
                 }
 
+                const ctx = getAuthContext();
+                const myRole = ctx ? ctx.role : '';
+
                 renderTable('requestsTableContainer', [
                     { label: 'ID', key: 'id', format: (v) => `#${v}` },
                     { label: 'Workflow', key: 'workflowName', format: v => `<span class="font-bold text-white">${v}</span>` },
                     { label: 'Created By', key: 'createdByUsername' },
                     { label: 'Current Step', key: 'currentStepName' },
+                    { label: 'Role', key: 'currentStepRole', format: v => `<span class="badge badge-gray text-xs">${v}</span>` },
                     { label: 'Status', key: 'status', format: renderStatusBadge },
                     { label: 'Date', key: 'createdAt', format: formatDate }
                 ], requests, [
                     {
                         label: 'View',
                         class: 'btn-outline btn-sm',
-                        handler: (id) => window.location.href = `/requests/${id}`
+                        handler: 'viewRequest'
+                    },
+                    {
+                        label: 'Approve',
+                        class: 'btn-primary btn-sm',
+                        handler: (id) => openActionModal(id, 'APPROVE'),
+                        condition: (row) => row.currentStepRole === myRole && row.status === 'IN_PROGRESS'
+                    },
+                    {
+                        label: 'Reject',
+                        class: 'btn-outline btn-sm', // Or danger class if customized
+                        style: 'color: var(--error); border-color: var(--error);',
+                        handler: (id) => openActionModal(id, 'REJECT'),
+                        condition: (row) => row.currentStepRole === myRole && row.status === 'IN_PROGRESS'
                     }
-                ]);
+                ], 'viewRequest');
 
             } catch (err) {
                 loading.classList.add('hidden');
@@ -96,6 +113,15 @@
             if (status === 'REJECTED') cls = 'badge-error';
             if (status === 'COMPLETED') cls = 'badge-success'; // dark green?
             return `<span class="badge ${cls}">${status}</span>`;
+        }
+
+        function openActionModal(id, type) {
+            // Redirect to detail page to perform action
+            window.location.href = `/requests/${id}`;
+        }
+
+        function viewRequest(id) {
+            window.location.href = `/requests/${id}`;
         }
 
         function formatDate(dateStr) {

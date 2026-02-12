@@ -36,8 +36,11 @@
                                         </svg>
                                     </div>
                                     <div>
-                                        <h4 class="text-sm font-bold m-0" id="previewTitle">Workflow Name</h4>
+                                        <h4 class="text-base font-bold text-white m-0" id="previewTitle"
+                                            style="letter-spacing: 0.02em;">Workflow Name</h4>
                                         <div class="text-xs text-muted" id="previewDesc">Description...</div>
+                                        <div class="text-xs text-muted mt-1 opacity-75">Submit request for admin
+                                            approval</div>
                                     </div>
                                 </div>
                                 <div class="flex gap-4 text-xs text-muted border-t border-border pt-3">
@@ -64,7 +67,7 @@
                                 <button type="button" id="addFieldBtn" onclick="addField()"
                                     class="btn btn-outline btn-sm" style="display:none">+ Add Field</button>
                             </div>
-                            <div id="payloadFields" class="space-y-3 min-h-[100px]">
+                            <div id="payloadFields" class="space-y-5 min-h-[100px]">
                                 <!-- Empty State -->
                                 <div id="emptyPayloadState"
                                     class="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded text-center">
@@ -104,7 +107,7 @@
         document.addEventListener('DOMContentLoaded', init);
 
         async function init() {
-            const ctx = requireAuth(['USER', 'ADMIN', 'SUPER_ADMIN']);
+            const ctx = requireAuth(['USER', 'ADMIN', 'SUPER_ADMIN', 'TENANT_MANAGER']);
             if (!ctx) return;
 
             loadActions();

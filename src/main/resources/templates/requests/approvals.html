@@ -94,7 +94,7 @@
                     {
                         label: 'View',
                         class: 'btn-outline btn-sm',
-                        handler: (id) => window.location.href = `/requests/${id}`
+                        handler: 'viewRequest'
                     },
                     {
                         label: 'Approve',
@@ -107,7 +107,7 @@
                         style: 'color: var(--error); border-color: var(--error);',
                         handler: (id) => openActionModal(id, 'REJECT')
                     }
-                ]);
+                ], 'viewRequest'); // Add row click handler
 
             } catch (err) {
                 loading.classList.add('hidden');
@@ -157,6 +157,10 @@
             } finally {
                 setLoading('confirmBtn', false, type === 'APPROVE' ? 'Approve' : 'Reject');
             }
+        }
+
+        function viewRequest(id) {
+            window.location.href = `/requests/${id}`;
         }
 
         function formatDate(dateStr) {

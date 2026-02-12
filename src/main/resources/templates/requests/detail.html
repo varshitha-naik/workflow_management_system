@@ -89,6 +89,30 @@
         .timeline-item:last-child {
             border-left: none;
         }
+
+        /* New Visual Styles */
+        .step-item.active .step-circle {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 15px var(--primary-glow);
+            border-color: var(--primary);
+            transform: scale(1.1);
+            transition: all 0.3s ease;
+        }
+
+        .step-item.completed .step-circle {
+            background: var(--success);
+            border-color: var(--success);
+            color: white;
+        }
+
+        .step-item.future {
+            opacity: 0.5;
+        }
+
+        .border-l-4 {
+            border-left-width: 4px;
+        }
     </style>
 </head>
 
@@ -113,9 +137,25 @@
                     </div>
                 </div>
 
+                <!-- Status Banner -->
+                <!-- Status Banner -->
+                <div id="statusBanner" class="hidden mb-8 rounded-lg p-4 border border-l-4"></div>
+
                 <!-- Stepper -->
                 <div class="card p-6 mb-6 overflow-x-auto">
                     <div id="stepperContainer" class="stepper min-w-[500px]"></div>
+
+                    <!-- Progress Bar -->
+                    <div class="mt-8 px-2">
+                        <div class="flex justify-between text-sm text-muted mb-1">
+                            <span id="progressText">Progress</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="w-full bg-surface-hover rounded-full h-2">
+                            <div id="progressBar" class="bg-primary h-2 rounded-full transition-all duration-500"
+                                style="width: 0%"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-2 gap-6">
@@ -142,6 +182,23 @@
                                     class="btn btn-primary flex-1">Approve</button>
                                 <button onclick="openActionModal('REJECT')"
                                     class="btn btn-outline flex-1 text-error border-error">Reject</button>
+                            </div>
+                        </div>
+
+                        <!-- Next Action Info Panel -->
+                        <div class="card p-4 bg-surface-hover border-l-4 border-primary">
+                            <h3 class="text-xs uppercase tracking-wide text-muted font-bold mb-2">Next Action</h3>
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 rounded-full bg-primary/20 text-primary">
+                                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-white text-sm" id="nextActionRole">Loading...</div>
+                                    <div class="text-xs text-muted" id="nextActionStep">Waiting for review...</div>
+                                </div>
                             </div>
                         </div>
 
@@ -350,27 +407,46 @@
                 else if (isError) cls += ' error';
 
                 // Connector logic
-                // If this is NOT the last item, show connector to the right? 
-                // Actually the design was flex items side-by-side. 
-                // We need to inject a connector div between items or as part of the item.
-                // Let's use a flex layout where we insert connector divs between step items.
-                // The map returns an array of strings. We can join them with connector HTML?
-                // Or better, each item has a connector except the last one.
-
                 const showConnector = idx < steps.length - 1;
-                const connectorClass = (isCompleted) ? 'stepper-connector-line active' : 'stepper-connector-line';
+                const connectorClass = (isCompleted && status !== 'REJECTED') ? 'stepper-connector-line active' : 'stepper-connector-line';
+
+                // Future Step Class
+                if (!isCompleted && !isActive && !isError) cls += ' future';
+
+                // Checkmark for completed
+                const circleContent = isCompleted
+                    ? '<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>'
+                    : (idx + 1);
 
                 return `
                     <div class="flex-1 flex items-center">
-                        <div class="${cls} relative z-10">
-                            <div class="step-circle">${idx + 1}</div>
-                            <div class="step-title mt-2">${s.stepName}</div>
+                        <div class="${cls} relative z-10 transition-all duration-300">
+                            <div class="step-circle mx-auto mb-2">${circleContent}</div>
+                            <div class="step-title mt-1">${s.stepName}</div>
                             <div class="text-xs text-muted">${s.requiredRole}</div>
                         </div>
                         ${showConnector ? `<div class="${connectorClass}"></div>` : ''}
                     </div>
                 `;
             }).join('');
+
+            // Update Progress Bar
+            const total = steps.length;
+            const currentIdx = activeIndex + 1; // 1-based display
+            // If completed, progress is 100%
+            let percent = 0;
+            if (status === 'COMPLETED') percent = 100;
+            else percent = Math.round(((activeIndex) / total) * 100);
+
+            // Adjust for user friendliness (start at a small non-zero if step 1?)
+            if (activeIndex === 0 && status !== 'COMPLETED') percent = 10;
+            if (percent > 100) percent = 100;
+
+            document.getElementById('progressBar').style.width = `${percent}%`;
+            document.getElementById('progressPercent').textContent = `${percent}%`;
+            document.getElementById('progressText').textContent = status === 'COMPLETED'
+                ? 'Workflow Completed'
+                : `Progress: ${percent}% complete (Step ${Math.min(activeIndex + 1, total)} of ${total})`;
 
             // Adjust container display to ensure flex alignment
             // The container needs to be just 'flex' (it is .stepper already)
@@ -381,16 +457,79 @@
             if (!currentRequest) return;
             const ctx = getAuthContext(); // { role, username }
 
-            // Show Action Card if:
-            // 1. Status is IN_PROGRESS
-            // 2. Current Step Required Role == My Role
-            // 3. (Optional) Not already acted? (Backend handles logic, here just UI hint)
-
             // Find current step object
             const step = requestSteps.find(s => s.id === currentRequest.currentStepId);
-            if (step && currentRequest.status === 'IN_PROGRESS' && step.requiredRole === ctx.role) {
-                document.getElementById('actionCard').classList.remove('hidden');
+
+            // Update Banner & Next Action Panel
+            const banner = document.getElementById('statusBanner');
+            const nextActionRole = document.getElementById('nextActionRole');
+            const nextActionStep = document.getElementById('nextActionStep');
+
+            if (currentRequest.status === 'COMPLETED') {
+                banner.className = 'mb-6 rounded-lg p-4 border border-l-4 bg-success/10 border-success text-white flex items-center gap-3';
+                banner.innerHTML = `
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <div class="font-bold">Workflow Completed</div>
+                        <div class="text-sm opacity-90">All steps have been finished successfully.</div>
+                    </div>
+                 `;
+                banner.classList.remove('hidden');
+
+                nextActionRole.textContent = 'Completed';
+                nextActionStep.textContent = 'Workflow finished';
+            } else if (currentRequest.status === 'REJECTED') {
+                banner.className = 'mb-6 rounded-lg p-4 border border-l-4 bg-error/10 border-error text-white flex items-center gap-3';
+                banner.innerHTML = `
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div>
+                        <div class="font-bold">Request Rejected</div>
+                        <div class="text-sm opacity-90">This request has been rejected and closed.</div>
+                    </div>
+                 `;
+                banner.classList.remove('hidden');
+
+                nextActionRole.textContent = 'Rejected';
+                nextActionStep.textContent = 'Process stopped';
+            } else if (step) {
+                // IN PROGRESS
+                const isMyTurn = step.requiredRole === ctx.role;
+                const readableRole = formatRole(step.requiredRole);
+
+                nextActionRole.textContent = readableRole;
+                nextActionStep.textContent = `${step.stepName} Pending`;
+
+                if (isMyTurn) {
+                    // ACTION REQUIRED
+                    banner.className = 'mb-8 rounded-lg p-4 border border-l-4 bg-primary/10 border-primary text-white flex items-center gap-3';
+                    banner.innerHTML = `
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <div>
+                            <div class="font-bold">Action Required</div>
+                            <div class="text-sm opacity-90">Please review and process this request.</div>
+                        </div>
+                    `;
+                    banner.classList.remove('hidden');
+                    document.getElementById('actionCard').classList.remove('hidden');
+                } else {
+                    // INFO ONLY
+                    banner.className = 'mb-8 rounded-lg p-4 border border-l-4 bg-surface-hover border-gray-600 text-muted flex items-center gap-3';
+                    banner.innerHTML = `
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div>
+                             <div class="font-bold text-white">Request Submitted Successfully</div>
+                            <div class="text-sm">Current Step: <strong class="text-white">${step.stepName}</strong>. Handled by: <strong class="text-white">${readableRole}</strong>.</div>
+                            <div class="text-xs opacity-75 mt-1">No action required from you at this time.</div>
+                        </div>
+                    `;
+                    banner.classList.remove('hidden');
+                }
             }
+        }
+
+        function formatRole(role) {
+            if (!role) return '';
+            return role.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
         }
 
         // Action Modal Logic

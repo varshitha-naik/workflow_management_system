@@ -20,12 +20,28 @@
                         <h1 id="pageTitle">Global Workflows</h1>
                         <p class="text-muted" id="pageDesc">Manage and orchestrate business processes</p>
                     </div>
-                    <button onclick="openModal()" class="btn btn-primary" id="btnCreateWorkflow" style="display:none">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                        Create Workflow
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <select id="workflowFilter" class="form-control" onchange="renderWorkflows()"
+                            style="width: 200px; display:none;">
+                            <option value="all">All Workflows</option>
+                            <option value="my">My Available</option>
+                        </select>
+                        <button onclick="window.location.href='/requests/new'" class="btn btn-primary"
+                            id="btnCreateRequest" style="display:none">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" style="margin-right:8px">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Create Request
+                        </button>
+                        <button onclick="openModal()" class="btn btn-primary" id="btnCreateWorkflow"
+                            style="display:none">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                            </svg>
+                            Create Workflow
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex flex-wrap gap-4 mb-6">
@@ -121,11 +137,29 @@
             document.getElementById('createModal').classList.remove('open');
         }
 
+        const timeAgo = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            const now = new Date();
+            const seconds = Math.floor((now - date) / 1000);
+
+            let interval = seconds / 31536000;
+            if (interval > 1) return Math.floor(interval) + "y ago";
+            interval = seconds / 2592000;
+            if (interval > 1) return Math.floor(interval) + "mo ago";
+            interval = seconds / 86400;
+            if (interval > 1) return Math.floor(interval) + "d ago";
+            interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + "h ago";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + "m ago";
+            return "Just now";
+        };
+
         async function loadWorkflows() {
             const container = document.getElementById('workflowsTable');
             try {
                 // Check Role for Title
-                // USER and TENANT_MANAGER are viewers
                 if (hasRole(['USER', 'TENANT_MANAGER']) && !hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'OB_ADMIN', 'TENANT_ADMIN'])) {
                     document.getElementById('pageTitle').textContent = 'Processes';
                     document.getElementById('pageDesc').textContent = 'View available business processes';
@@ -134,50 +168,110 @@
                 const data = await apiCall('/workflows');
                 const workflows = data || [];
 
-                // Update Stats
                 document.getElementById('statTotal').textContent = workflows.length;
                 document.getElementById('statActive').textContent = workflows.filter(w => w.active).length;
                 document.getElementById('statInactive').textContent = workflows.filter(w => !w.active).length;
 
-                const timeAgo = (dateStr) => {
-                    if (!dateStr) return 'N/A';
-                    const date = new Date(dateStr);
-                    const now = new Date();
-                    const seconds = Math.floor((now - date) / 1000);
-
-                    let interval = seconds / 31536000;
-                    if (interval > 1) return Math.floor(interval) + "y ago";
-                    interval = seconds / 2592000;
-                    if (interval > 1) return Math.floor(interval) + "mo ago";
-                    interval = seconds / 86400;
-                    if (interval > 1) return Math.floor(interval) + "d ago";
-                    interval = seconds / 3600;
-                    if (interval > 1) return Math.floor(interval) + "h ago";
-                    interval = seconds / 60;
-                    if (interval > 1) return Math.floor(interval) + "m ago";
-                    return "Just now";
-                };
-
+                // Configure Filter
                 const ctx = getAuthContext();
+                const filterSelect = document.getElementById('workflowFilter');
+
+                if (filterSelect) {
+                    if (hasRole(['USER'])) {
+                        // USER: No dropdown needed
+                        filterSelect.style.display = 'none';
+                        filterSelect.value = 'all';
+                    } else if (hasRole(['TENANT_MANAGER'])) {
+                        // TENANT_MANAGER: Restore existing filters
+                        filterSelect.style.display = 'block';
+                        filterSelect.innerHTML = `
+                            <option value="all">All Processes</option>
+                            <option value="my">My Available</option>
+                        `;
+                        filterSelect.value = 'all';
+                    } else {
+                        // ADMINS: New Role-Based Filters
+                        filterSelect.style.display = 'block';
+                        filterSelect.innerHTML = `
+                            <option value="all">All Workflows</option>
+                            <option value="role:USER">Start Role: USER</option>
+                            <option value="role:TENANT_MANAGER">Start Role: TENANT_MANAGER</option>
+                        `;
+                        filterSelect.value = 'all';
+                    }
+                }
+
+                // Global variable for filtering
+                window.allWorkflows = workflows;
+
+                // Show/Hide Buttons
                 const canManage = hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'ADMIN', 'TENANT_ADMIN']);
-
-                // Hide Create Button for non-admins
                 const createBtn = document.getElementById('btnCreateWorkflow');
-                if (createBtn) {
-                    createBtn.style.display = canManage ? 'flex' : 'none';
+                const createReqBtn = document.getElementById('btnCreateRequest');
+
+                if (createBtn) createBtn.style.display = canManage ? 'flex' : 'none';
+                if (createReqBtn) {
+                    const canCreateRequest = hasRole(['USER', 'TENANT_MANAGER']);
+                    createReqBtn.style.display = canCreateRequest ? 'flex' : 'none';
                 }
 
-                // Define actions based on role
-                const actions = [];
-                actions.push({ label: 'View', class: 'btn-outline btn-sm', handler: 'viewWorkflow' });
+                renderWorkflows();
 
-                if (canManage) {
-                    actions.push({ label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' });
-                }
+            } catch (e) {
+                container.innerHTML = `<div class="p-4 text-center text-error">Failed to load workflows</div>`;
+                console.error(e);
+            }
+        }
 
+        function renderWorkflows() {
+            const workflows = window.allWorkflows || [];
+            const filterEl = document.getElementById('workflowFilter');
+            const filter = filterEl ? filterEl.value : 'all';
+
+            const ctx = getAuthContext();
+            const currentRole = ctx ? ctx.role : '';
+            const canManage = hasRole(['SUPER_ADMIN', 'GLOBAL_ADMIN', 'ADMIN', 'TENANT_ADMIN']);
+
+            let filtered = workflows;
+
+            if (filter === 'my') {
+                // "My Available" -> workflows I can start.
+                // For Manager, strictly this means where firstStepRole == TENANT_MANAGER
+                // (or matching current role).
+                filtered = workflows.filter(w => w.firstStepRole === currentRole);
+            } else if (filter.startsWith('role:')) {
+                const targetRole = filter.split(':')[1];
+                filtered = workflows.filter(w => w.firstStepRole === targetRole);
+            }
+
+            const actions = [];
+            actions.push({ label: 'View', class: 'btn-outline btn-sm', handler: 'viewWorkflow' });
+
+            if (canManage) {
+                actions.push({ label: 'Delete', class: 'btn-danger btn-sm', handler: 'deleteWorkflow' });
+            }
+
+            if (filtered.length === 0 && !canManage) {
+                document.getElementById('workflowsTable').innerHTML = `
+                        <div class="text-center p-8 border border-dashed border-gray-700 rounded-lg">
+                            <div class="mb-4 text-primary opacity-50">
+                                <svg class="mx-auto w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">No active processes found</h3>
+                            <p class="text-muted mb-6">Start by creating a request.</p>
+                            <a href="/requests/new" class="btn btn-primary">Create Request</a>
+                        </div>
+                    `;
+            } else {
                 renderTable('workflowsTable', [
                     { label: 'Name', key: 'name' },
                     { label: 'Description', key: 'description' },
+                    {
+                        label: 'Start Role', key: 'firstStepRole',
+                        format: (v) => v ? `<span class="badge badge-gray text-xs">${v}</span>` : '<span class="text-muted text-xs">-</span>'
+                    },
                     {
                         label: 'Status', key: 'active', align: 'center', format: (v) => v
                             ? '<span class="badge badge-success">ACTIVE</span>'
@@ -188,10 +282,7 @@
                         key: 'updatedAt',
                         format: (v, row) => timeAgo(v || row.createdAt)
                     }
-                ], workflows, actions, 'viewWorkflow');
-
-            } catch (e) {
-                container.innerHTML = `<div class="p-4 text-center text-error">Failed to load workflows</div>`;
+                ], filtered, actions, 'viewWorkflow');
             }
         }
 

@@ -39,6 +39,7 @@ public class RequestService {
     private final RequestActionRepository requestActionRepository;
     private final AuditLogService auditLogService;
     private final MeterRegistry meterRegistry;
+    private final NotificationService notificationService;
 
     private final Counter requestCreatedCounter;
     private final Counter requestApprovedCounter;
@@ -52,7 +53,8 @@ public class RequestService {
             RequestAssignmentService requestAssignmentService,
             RequestActionRepository requestActionRepository,
             AuditLogService auditLogService,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            NotificationService notificationService) {
         this.requestRepository = requestRepository;
         this.workflowRepository = workflowRepository;
         this.workflowStepRepository = workflowStepRepository;
@@ -62,6 +64,7 @@ public class RequestService {
         this.requestActionRepository = requestActionRepository;
         this.auditLogService = auditLogService;
         this.meterRegistry = meterRegistry;
+        this.notificationService = notificationService;
 
         this.requestCreatedCounter = meterRegistry.counter("requests_created_total");
         this.requestApprovedCounter = meterRegistry.counter("requests_approved_total");
@@ -108,7 +111,52 @@ public class RequestService {
         request.setPayload(payloadJson);
 
         Request savedRequest = requestRepository.save(request);
-        requestAssignmentService.createAssignmentsForStep(savedRequest, firstStep);
+
+        // Check for Auto-Completion of First Step
+        boolean isCreatorStep = firstStep.getRequiredRole().name().equals(currentUser.getRole())
+                || firstStep.getRequiredRole() == UserRole.USER;
+
+        if (isCreatorStep || firstStep.isAutoApprove()) {
+            RequestAction submitAction = new RequestAction(savedRequest, user, ActionType.APPROVE, firstStep, null,
+                    "Request Submitted", tenantId);
+
+            List<WorkflowStep> allSteps = workflowStepRepository.findByWorkflowIdOrderByStepOrderAsc(workflow.getId());
+            WorkflowStep nextStep = allSteps.stream()
+                    .filter(s -> s.getStepOrder() > firstStep.getStepOrder())
+                    .findFirst()
+                    .orElse(null);
+
+            submitAction.setToStep(nextStep);
+            requestActionRepository.save(submitAction);
+
+            if (nextStep == null) {
+                savedRequest.setStatus(RequestStatus.COMPLETED);
+                notificationService.createNotification("Your request #" + savedRequest.getId() + " has been completed.",
+                        "SUCCESS", savedRequest, user);
+            } else {
+                savedRequest.setCurrentStep(nextStep);
+                requestAssignmentService.createAssignmentsForStep(savedRequest, nextStep);
+
+                // Notify Next Approvers
+                notificationService.createNotificationsForRole("New approval assigned: " + nextStep.getStepName(),
+                        "ACTION", savedRequest, nextStep.getRequiredRole().name());
+                // Notify User
+                notificationService.createNotification("Your request moved to " + nextStep.getStepName(), "INFO",
+                        savedRequest, user);
+
+                // Handle Recursive Auto-Approve
+                if (nextStep.isAutoApprove()) {
+                    processAction(savedRequest.getId(), "System Auto-Approved", ActionType.AUTO_APPROVE);
+                }
+            }
+            requestRepository.save(savedRequest);
+        } else {
+            // Normal flow: Create assignment for the first step
+            requestAssignmentService.createAssignmentsForStep(savedRequest, firstStep);
+            // Notify Approvers
+            notificationService.createNotificationsForRole("New approval assigned: " + firstStep.getStepName(),
+                    "ACTION", savedRequest, firstStep.getRequiredRole().name());
+        }
 
         java.util.Map<String, Object> details = new java.util.HashMap<>();
         details.put("workflowId", workflow.getId());
@@ -120,6 +168,88 @@ public class RequestService {
 
         return mapToResponse(savedRequest);
     }
+
+    // ... existing ...
+
+    // START: processAction modification
+    private void processAction(Long requestId, String comment, ActionType actionType) {
+        Long tenantId = SecurityUtils.getCurrentTenantId();
+        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
+        // For System actions, we might need a system user or use current user if
+        // context exists
+        User user = userRepository.findById(currentUser.getId()).orElseThrow();
+
+        Request request = requestRepository.findByIdAndTenantId(requestId, tenantId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found"));
+
+        if (request.getStatus() != RequestStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request is not in progress");
+        }
+
+        WorkflowStep currentStep = request.getCurrentStep();
+
+        if (actionType != ActionType.AUTO_APPROVE) {
+            if (!currentUser.getRole().equals(currentStep.getRequiredRole().name())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "You do not have the required role to approve this step.");
+            }
+            requestAssignmentService.completeAssignment(request, user);
+        }
+
+        RequestAction action = new RequestAction(request, user, actionType, currentStep, null, comment, tenantId);
+
+        if (actionType == ActionType.REJECT) {
+            request.setStatus(RequestStatus.REJECTED);
+            requestActionRepository.save(action);
+            requestRepository.save(request);
+
+            // Notify Creator
+            notificationService.createNotification("Your request #" + request.getId() + " has been REJECTED.", "ERROR",
+                    request, request.getCreatedBy());
+
+            return;
+        }
+
+        List<WorkflowStep> allSteps = workflowStepRepository
+                .findByWorkflowIdOrderByStepOrderAsc(request.getWorkflow().getId());
+        WorkflowStep nextStep = allSteps.stream()
+                .filter(s -> s.getStepOrder() > currentStep.getStepOrder())
+                .findFirst()
+                .orElse(null);
+
+        action.setToStep(nextStep);
+        requestActionRepository.save(action);
+
+        if (nextStep == null) {
+            request.setStatus(RequestStatus.COMPLETED);
+            request.setCurrentStep(currentStep);
+
+            // Notify Creator
+            notificationService.createNotification("Your request #" + request.getId() + " is now COMPLETED.", "SUCCESS",
+                    request, request.getCreatedBy());
+
+        } else {
+            request.setCurrentStep(nextStep);
+            requestAssignmentService.createAssignmentsForStep(request, nextStep);
+
+            // Notify Next Approvers
+            notificationService.createNotificationsForRole("New approval assigned: " + nextStep.getStepName(), "ACTION",
+                    request, nextStep.getRequiredRole().name());
+
+            // Notify Creator (if creators are interested in progress)
+            notificationService.createNotification(
+                    "Your request #" + request.getId() + " moved to " + nextStep.getStepName(), "INFO", request,
+                    request.getCreatedBy());
+
+            if (nextStep.isAutoApprove()) {
+                processAction(requestId, "System Auto-Approved", ActionType.AUTO_APPROVE);
+            }
+        }
+        requestRepository.save(request);
+    }
+    // END: processAction modification
+
+    // ... remainders ...
 
     @Transactional(readOnly = true)
     public RequestResponse getRequest(Long id) {
@@ -191,77 +321,6 @@ public class RequestService {
         requestRejectedCounter.increment();
     }
 
-    private void processAction(Long requestId, String comment, ActionType actionType) {
-        Long tenantId = SecurityUtils.getCurrentTenantId();
-        UserPrincipal currentUser = SecurityUtils.getCurrentUser();
-        User user = userRepository.findById(currentUser.getId()).orElseThrow();
-
-        Request request = requestRepository.findByIdAndTenantId(requestId, tenantId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found"));
-
-        if (request.getStatus() != RequestStatus.IN_PROGRESS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request is not in progress");
-        }
-
-        WorkflowStep currentStep = request.getCurrentStep();
-
-        // Validate Role (skip check if AUTO_APPROVE system action, but here we confuse
-        // SYSTEM with User Action for now)
-        // Ideally we separate system auto-approve. For USER action, check role.
-        if (actionType != ActionType.AUTO_APPROVE) {
-            if (!currentUser.getRole().equals(currentStep.getRequiredRole().name())) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                        "You do not have the required role to approve this step.");
-            }
-            // Mark assignment complete
-            requestAssignmentService.completeAssignment(request, user);
-        }
-
-        // Record Action
-        RequestAction action = new RequestAction(request, user, actionType, currentStep, null, comment, tenantId);
-
-        if (actionType == ActionType.REJECT) {
-            request.setStatus(RequestStatus.REJECTED);
-            requestActionRepository.save(action);
-            requestRepository.save(request);
-            return;
-        }
-
-        // Handle APPROVE / AUTO_APPROVE
-        List<WorkflowStep> allSteps = workflowStepRepository
-                .findByWorkflowIdOrderByStepOrderAsc(request.getWorkflow().getId());
-        WorkflowStep nextStep = allSteps.stream()
-                .filter(s -> s.getStepOrder() > currentStep.getStepOrder())
-                .findFirst()
-                .orElse(null);
-
-        action.setToStep(nextStep); // Can be null if finished
-        requestActionRepository.save(action);
-
-        if (nextStep == null) {
-            request.setStatus(RequestStatus.COMPLETED);
-            request.setCurrentStep(currentStep); // Stay on last step visually or handle differently? Standard is stay.
-        } else {
-            request.setCurrentStep(nextStep);
-            // Create new Assignments
-            requestAssignmentService.createAssignmentsForStep(request, nextStep);
-
-            // Check Auto-Approve
-            if (nextStep.isAutoApprove()) {
-                // Trigger system auto approve
-                // Recursive or separate call?
-                // We need to simulate System User action or similar.
-                // For now, let's just log it as the SAME user but with action Auto-Approve to
-                // keep it simple,
-                // OR we leave it for a background job. USER REQUEST says: "system automatically
-                // processes".
-                // Since we are in a transaction, we can just proceed.
-                processAction(requestId, "System Auto-Approved", ActionType.AUTO_APPROVE);
-            }
-        }
-        requestRepository.save(request);
-    }
-
     @Transactional(readOnly = true)
     public List<RequestActionResponse> getRequestHistory(Long requestId) {
         Long tenantId = SecurityUtils.getCurrentTenantId();
@@ -300,6 +359,7 @@ public class RequestService {
                 request.getCreatedBy().getUsername(),
                 request.getCurrentStep().getId(),
                 request.getCurrentStep().getStepName(),
+                request.getCurrentStep().getRequiredRole().name(),
                 request.getStatus(),
                 payloadMap,
                 request.getCreatedAt(),

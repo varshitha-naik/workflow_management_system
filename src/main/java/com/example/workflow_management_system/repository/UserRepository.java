@@ -46,4 +46,8 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
         boolean existsByRoleAndTenantIsNull(com.example.workflow_management_system.model.UserRole role);
 
         List<User> findByRoleAndTenantIsNull(com.example.workflow_management_system.model.UserRole role);
+
+        @org.springframework.data.jpa.repository.Query("SELECT u FROM User u WHERE u.tenant.id = :tenantId AND u.role = :role")
+        List<User> findByTenantIdAndRole(@org.springframework.data.repository.query.Param("tenantId") Long tenantId,
+                        @org.springframework.data.repository.query.Param("role") com.example.workflow_management_system.model.UserRole role);
 }
